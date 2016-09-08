@@ -1,0 +1,14 @@
+// jedit macros
+// formats current buffer with astyle program
+// copy file to ~/.jedit/macros
+
+import java.nio.file.*;
+import java.nio.charset.*;
+
+buffer = editPane.getBuffer();
+fileName = buffer.getDirectory() + buffer.getName();
+
+Runtime.getRuntime().exec("astyle --indent=spaces=4 --pad-oper --style=allman --suffix=none --unpad-paren " + fileName);
+
+buffer.reload(view);
+
