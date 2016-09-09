@@ -34,10 +34,10 @@ def colorize(line, keys, types, vals, preps):
 
 
 def colorize_cpp(line):
-    keys = """     auto        const            struct
-break       continue      else        for              switch   void
+    keys = """            auto        const            struct
+break       continue      else        for              switch
 case        default       enum        goto             register  sizeof  typedef  volatile
-char        do            extern      if               return     static  union   while
+            do            extern      if               return     static  union   while
 asm         dynamic_cast  namespace   reinterpret_cast try
 explicit    new           static_cast typeid
 catch       operator      template    typename
