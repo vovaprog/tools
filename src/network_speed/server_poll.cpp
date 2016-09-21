@@ -230,7 +230,7 @@ int main(int argc, char** argv)
 {
     if(argc <= 1)
     {
-        printf("usage: server [check]\n");
+        printf("usage: server_poll [check]\n");
     }
     
     signal(SIGINT, sig_int_handler);
