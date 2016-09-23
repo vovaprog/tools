@@ -2,14 +2,19 @@
 #define PROCESS_RESULT_H
 
 class Executor;
-class DescriptorExecutor;
+
+struct DescriptorExecutor
+{
+	int fd = -1;
+	//Executor *pExecutor = nullptr;
+	int executorIndex = -1;
+};
 
 struct ProcessResult {
-	enum class Action { createExecutor, removeExecutor, editPoll, None };
+	enum class Action { createExecutor, removeExecutor, editPoll, none, shutdown };
 
-	Action action = Action::None;
+	Action action = Action::none;
 
-	Executor *pExecutor = nullptr;
 	DescriptorExecutor *pDe = nullptr;
 
 	int addFd = -1;
@@ -20,8 +25,7 @@ struct ProcessResult {
 
 	void reset()
 	{
-		action = Action::None;
-		pExecutor = nullptr;
+		action = Action::none;
 		pDe = nullptr;
 		addFd = -1;
 		addFdEvents = 0;

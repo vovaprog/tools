@@ -1,4 +1,4 @@
-
+#include <sys/stat.h>
 
 long long int fileSize(const char *filename) 
 {

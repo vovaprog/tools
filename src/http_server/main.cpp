@@ -1,25 +1,21 @@
-/*#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <errno.h>
-#include <pthread.h>
-#include <poll.h>
-#include <arpa/inet.h>
-#include <sys/epoll.h>
-
-#include <NetworkUtils.h>
-#include <TransferRingBuffer.h>*/
-
 #include <Server.h>
+
+/*static void sig_int_handler(int i)
+{
+	printf("sig int handler\n");
+
+	if(serverSockFd > 0)
+	{
+		close(serverSockFd);
+	}
+
+	exit(-1);
+}
+*/
 
 int main(int argc, char** argv)
 {	
-    signal(SIGINT, sig_int_handler);
+	//signal(SIGINT, sig_int_handler);
 
 	Server srv;
 	Server::Parameters params;

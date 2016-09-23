@@ -20,12 +20,13 @@
 
 #include <Executor.h>
 #include <TransferRingBuffer.h>
+#include <FileUtils.h>
 
-class ClientExecutor: Executor {
+class ClientExecutor: public Executor {
 public:
     int init(int clientSocketFd)
     {
-		shutdown();
+		cleanup();
         
         this->clientSocketFd = clientSocketFd;        
 		bytesToSend = 0;
@@ -83,7 +84,7 @@ public:
     
 	int parseRequest()
 	{
-		strcpy(fileName, "./data/test.html");
+		strcpy(fileName, "/home/vlads/programs/tools/src/http_server/build/data/test.jpg");
 		return 0;
 	}
 
@@ -97,6 +98,8 @@ public:
         
         if(parseRequest() == 0)
         {
+			bytesToSend = fileSize(fileName);
+
 			fileFd = open(fileName, O_NONBLOCK | O_RDONLY);
             
             if(fileFd < 0)
@@ -105,29 +108,26 @@ public:
                 closeResult(result);
                 return -1;
             }
-            
-            result.addFd = fileFd;
-			result.addFdEvents = EPOLLIN;
-            
+
 			result.editFd = clientSocketFd;
 			result.editFdEvents = EPOLLOUT;
             
             result.action = ProcessResult::Action::editPoll;
             
-            state = State::sendFile;
-            
-            return 0;
+			state = State::sendFile;
         }
+
+		return 0;
     }
     
     int sendFile_sendData(ProcessResult &result)
-    {
+    {		
 		int bytesWritten = sendfile(clientSocketFd, fileFd, &filePosition, bytesToSend);
-        if(bytesWritten < 0)
+		if(bytesWritten <= 0)
         {
-            if(EAGAIN)
+			if(errno == EAGAIN || errno == EWOULDBLOCK)
             {
-                result.action = ProcessResult::Action::None;
+				result.action = ProcessResult::Action::none;
                 return 0;
             }
             else
@@ -138,34 +138,40 @@ public:
             }
             
         }
-        if(filePosition>=fileSize)
-        {
-            closeResult(result);
-            return 0;
-        }        
+
+		bytesToSend -= bytesWritten;
+
+		if(bytesToSend == 0)
+		{
+			closeResult(result);
+			return 0;
+		}
+
+		result.action = ProcessResult::Action::none;
+		return 0;
     }
     
     int process(int fd, int events, ProcessResult &result) override
     {
 		if(state == State::waitRequest && fd == clientSocketFd && (events & EPOLLIN))
 		{
-			return waitRequest_ReadSocket();
+			return waitRequest_ReadSocket(result);
 		}
 		if(state == State::sendFile && fd == clientSocketFd && (events & EPOLLOUT))
 		{
-			return sendFile_sendData();
+			return sendFile_sendData(result);
 		}
 		if(state == State::sendFile && fd == fileFd && (events & EPOLLIN))
 		{
-			return sendFile_sendData();
+			return sendFile_sendData(result);
 		}
 
 		printf("invalid process call\n");
-		result.Action = ProcessResult::Action::None;
+		result.action = ProcessResult::Action::none;
 		return 0;
     }
     
-	void shutdown()
+	void cleanup()
     {
         if(clientSocketFd > 0)
         {
@@ -181,14 +187,28 @@ public:
 		return;
     }
     
+	int getFds(int *fds) override
+	{
+		int index = 0;
+		if(clientSocketFd > 0)
+		{
+			fds[index] = clientSocketFd;
+			++index;
+		}
+		return index;
+	}
+
 protected:
 	enum class State { waitRequest, sendFile, invalid };
 
 	State state = State::invalid;
+
 	int clientSocketFd = -1;
 	int fileFd = -1;
-	int bytesToSend = 0;
+
+	long long int bytesToSend = 0;
 	off_t filePosition = 0;
+
 	TransferRingBuffer requestBuffer;
 	char fileName[300];
 };
