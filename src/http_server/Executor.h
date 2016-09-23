@@ -1,9 +1,11 @@
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
+#include "ProcessResult.h"
+
 class Executor {
 public:
-	virtual ProcessResult process(int fd, int events) = 0;
+	virtual int process(int fd, int events, ProcessResult &result);
 };
 
 #endif

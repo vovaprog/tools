@@ -1,13 +1,9 @@
-
-struct ProcessResult {
-	enum class Result { };
-
-};
-
+#ifndef SERVER_EXECUTOR_H
+#define SERVER_EXECUTOR_H
 
 class ServerExecutor: Executor {
 public:
-	ProcessResult process(int fd, int events) override
+	int process(int fd, int events, ProcessResult &result) override
 	{
 		if(fd != serverSocketFd)
 		{
@@ -42,9 +38,20 @@ public:
 
 		return result;
 	}
+	
+	int handleResultError(ProcessResult &result)
+	{
+	    if(result.action == createExecutor)
+	    {
+	        close(result.fd);
+	    }
+
+	    return 0;
+	}
 
 
 protected:
 	int serverSocketFd;
 };
 
+#endif
