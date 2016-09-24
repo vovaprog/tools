@@ -1,26 +1,26 @@
+#include <signal.h>
+
 #include <Server.h>
 
-/*static void sig_int_handler(int i)
+Server srv;
+
+static void sig_int_handler(int i)
 {
 	printf("sig int handler\n");
 
-	if(serverSockFd > 0)
-	{
-		close(serverSockFd);
-	}
+    srv.destroy();
 
 	exit(-1);
 }
-*/
 
 int main(int argc, char** argv)
 {	
-	//signal(SIGINT, sig_int_handler);
+    signal(SIGINT, sig_int_handler);
 
-	Server srv;
-	Server::Parameters params;
+    ServerParameters params;
 	params.port = 7000;
 	params.maxClients = 10;
+    strcpy(params.rootFolder, "/mnt/programs/programs/git/tools/src/http_server/build/data");
 
 	srv.run(params);
 

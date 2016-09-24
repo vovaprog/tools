@@ -10,9 +10,11 @@ set(SOURCE
 	ServerExecutor.h
     ClientExecutor.h
     Server.h
+    ServerParameters.h
     ProcessResult.h
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
-    ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp)
+    ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
+    ../cpp/TransferRingBuffer.h)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -g -O0")
 

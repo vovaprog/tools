@@ -21,17 +21,31 @@
 #include <Executor.h>
 #include <TransferRingBuffer.h>
 #include <FileUtils.h>
+#include <ServerParameters.h>
 
 class ClientExecutor: public Executor {
-public:
-    int init(int clientSocketFd)
+public:    
+    ~ClientExecutor()
     {
-		cleanup();
+        down();
+    }
+
+    int init(ServerParameters &params)
+    {
+        strcpy(fileName, params.rootFolder);
+        strcat(fileName, "/");
+        rootFolderLength = strlen(fileName);
+        return 0;
+    }
+
+    int up(int clientSocketFd)
+    {
+        down();
         
         this->clientSocketFd = clientSocketFd;        
 		bytesToSend = 0;
 		filePosition = 0;
-		requestBuffer.init(1000);
+        buffer.init(REQUEST_BUFFER_SIZE);
 
 		state = State::waitRequest;
 
@@ -43,7 +57,7 @@ public:
 		void *data;
 		int size;
 
-        if(requestBuffer.startWrite(data, size))
+        if(buffer.startWrite(data, size))
         {
 			int rd = read(clientSocketFd, data, size);
     
@@ -64,7 +78,7 @@ public:
             }
             else
             {            
-				requestBuffer.endWrite(rd);
+                buffer.endWrite(rd);
             }
 		}
 		else
@@ -82,11 +96,84 @@ public:
 		state = State::invalid;
     }
     
+    int checkUrl(char *url)
+    {
+        for(int i=0;i < REQUEST_BUFFER_SIZE && urlBuffer[i]!=0 ;++i)
+        {
+            if(!((urlBuffer[i]>='a' && urlBuffer[i]<='z') ||
+               (urlBuffer[i]>='A' && urlBuffer[i]<='Z') ||
+               (urlBuffer[i]>='0' && urlBuffer[i]<='9') ||
+               urlBuffer[i]=='/' || urlBuffer[i]=='.'))
+            {
+                return -1;
+            }
+        }
+        return 0;
+    }
+
 	int parseRequest()
 	{
-		strcpy(fileName, "/home/vlads/programs/tools/src/http_server/build/data/test.jpg");
-		return 0;
+        void *data;
+        int size;
+
+        if(buffer.startRead(data, size))
+        {
+            char *cdata = (char*)data;
+
+            char saveChar;
+            if(size > 1)
+            {
+                saveChar = cdata[size - 1];
+                cdata[size - 1] = 0;
+
+                if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
+                {
+                    if(checkUrl(urlBuffer) != 0)
+                    {
+                        printf("invalid url\n");
+                        return -2;
+                    }
+
+                    fileName[rootFolderLength] = 0;
+
+                    if(strcmp(urlBuffer, "/") == 0)
+                    {
+                        strcat(fileName, "index.html");
+                    }
+                    else
+                    {
+                        strcat(fileName, urlBuffer);
+                    }
+
+                    return 0;
+                }
+
+                cdata[size - 1] = saveChar;
+            }
+        }
+        return -1;
 	}
+
+    int createResponse()
+    {
+        buffer.clear();
+
+        void *data;
+        int size;
+
+        if(buffer.startWrite(data, size))
+        {
+            sprintf((char*)data,"HTTP/1.1 200 Ok\r\nContent-Length: %lld\r\n\r\n", bytesToSend);
+            size = strlen((char*)data);
+            buffer.endWrite(size);
+            return 0;
+        }
+        else
+        {
+            printf("buffer.startWrite failed\n");
+            return -1;
+        }
+    }
 
     int waitRequest_ReadSocket(ProcessResult &result)
     {        
@@ -96,9 +183,18 @@ public:
             return -1;
         }
         
-        if(parseRequest() == 0)
+        int parseRequestResult = parseRequest();
+
+        if(parseRequestResult == 0)
         {
 			bytesToSend = fileSize(fileName);
+
+            if(bytesToSend < 0)
+            {
+                printf("fileSize failed\n");
+                closeResult(result);
+                return -1;
+            }
 
 			fileFd = open(fileName, O_NONBLOCK | O_RDONLY);
             
@@ -109,17 +205,65 @@ public:
                 return -1;
             }
 
+            if(createResponse() != 0)
+            {
+                closeResult(result);
+                return -1;
+            }
+
 			result.editFd = clientSocketFd;
 			result.editFdEvents = EPOLLOUT;
             
             result.action = ProcessResult::Action::editPoll;
             
-			state = State::sendFile;
+            state = State::sendResponse;
+        }
+        else if(parseRequestResult == -2)
+        {
+            closeResult(result);
+            return -1;
         }
 
 		return 0;
     }
-    
+
+    int sendResponse_sendData(ProcessResult &result)
+    {
+        void *data;
+        int size;
+
+        if(buffer.startRead(data, size))
+        {
+            int bytesWritten = write(clientSocketFd, data, size);
+
+            if(bytesWritten <= 0)
+            {
+                if(errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
+                {
+                    closeResult(result);
+                    return -1;
+                }
+            }
+            else
+            {
+                buffer.endRead(bytesWritten);
+
+                if(bytesWritten == size)
+                {
+                    state = State::sendFile;
+                }
+            }
+
+            result.action = ProcessResult::Action::none;
+            return 0;
+        }
+        else
+        {
+            closeResult(result);
+            return -1;
+        }
+    }
+
     int sendFile_sendData(ProcessResult &result)
     {		
 		int bytesWritten = sendfile(clientSocketFd, fileFd, &filePosition, bytesToSend);
@@ -157,6 +301,10 @@ public:
 		{
 			return waitRequest_ReadSocket(result);
 		}
+        if(state == State::sendResponse && fd == clientSocketFd && (events & EPOLLOUT))
+        {
+            return sendResponse_sendData(result);
+        }
 		if(state == State::sendFile && fd == clientSocketFd && (events & EPOLLOUT))
 		{
 			return sendFile_sendData(result);
@@ -171,7 +319,7 @@ public:
 		return 0;
     }
     
-	void cleanup()
+    void down()
     {
         if(clientSocketFd > 0)
         {
@@ -199,7 +347,9 @@ public:
 	}
 
 protected:
-	enum class State { waitRequest, sendFile, invalid };
+    static const int REQUEST_BUFFER_SIZE = 1000;
+
+    enum class State { waitRequest, sendResponse, sendFile, invalid };
 
 	State state = State::invalid;
 
@@ -209,8 +359,11 @@ protected:
 	long long int bytesToSend = 0;
 	off_t filePosition = 0;
 
-	TransferRingBuffer requestBuffer;
+    TransferRingBuffer buffer;
 	char fileName[300];
+    int rootFolderLength = 0;
+
+    char urlBuffer[REQUEST_BUFFER_SIZE];
 };
 
 #endif

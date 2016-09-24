@@ -8,14 +8,10 @@
 #include <ClientExecutor.h>
 #include <ServerExecutor.h>
 #include <ProcessResult.h>
+#include <ServerParameters.h>
 
 class Server {
 public:
-	struct Parameters {
-		int maxClients = 0;
-		int port = 0;
-	};
-
 	~Server()
 	{
 		destroy();
@@ -45,7 +41,7 @@ public:
 		}
 	}
 
-	int initDataStructs(Parameters &params)
+    int initDataStructs(ServerParameters &params)
 	{
 		MAX_CLIENTS = params.maxClients;
 		MAX_EVENTS = MAX_CLIENTS * 2 + 1;
@@ -62,6 +58,10 @@ public:
 		{
 			emptyDes.push(i);
 		}
+        for(int i=0;i<MAX_CLIENTS;++i)
+        {
+            clientExecutors[i].init(params);
+        }
 		return 0;
 	}
 
@@ -96,7 +96,7 @@ public:
 
 
 
-	int run(Parameters &params)
+    int run(ServerParameters &params)
 	{
 		if(initDataStructs(params) != 0)
 		{
@@ -136,9 +136,16 @@ public:
 			int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
 			if(nEvents == -1)
 			{
-				perror("epoll_wait failed");
-				destroy();
-				return -1;
+                if(errno == EINTR)
+                {
+                    continue;
+                }
+                else
+                {
+                    perror("epoll_wait failed");
+                    destroy();
+                    return -1;
+                }
 			}
 
 			for(int i = 0; i < nEvents; ++i)
@@ -177,7 +184,7 @@ public:
 		}
 		int executorIndex = emptyExecutors.top();		
 
-		clientExecutors[executorIndex].init(result.addFd);
+        clientExecutors[executorIndex].up(result.addFd);
 
 		if(addPollFd(result.addFd, result.addFdEvents, &clientExecutors[executorIndex], executorIndex) != 0)
 		{
@@ -217,7 +224,7 @@ public:
 
 		if(executorIndex >= 0)
 		{
-			clientExecutors[executorIndex].cleanup();
+            clientExecutors[executorIndex].down();
 			emptyExecutors.push(executorIndex);
 		}
 

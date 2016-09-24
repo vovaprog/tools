@@ -40,6 +40,12 @@ public:
         readHead = 0;
     }
 
+    void clear()
+    {
+        writeHead = 0;
+        readHead = 0;
+    }
+
     bool startWrite(void* &data, int &size)
     {
         if(writeHead == bufSize)
