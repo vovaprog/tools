@@ -76,7 +76,7 @@ public:
 
 		result.action = ProcessResult::Action::createExecutor;
 		result.addFd = clientSockFd;
-		result.addFdEvents = (EPOLLIN | EPOLLOUT);
+        result.addFdEvents = EPOLLIN;
 
 		return 0;
 	}

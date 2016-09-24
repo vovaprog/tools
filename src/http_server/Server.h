@@ -270,6 +270,8 @@ public:
 			return handleResult_editPoll(result);
 		case ProcessResult::Action::shutdown:
 			return handleResult_shutdown(result);
+        case ProcessResult::Action::none:
+            return 0;
 		default:
 			printf("unknown action\n");
 			return -1;

@@ -98,6 +98,7 @@ public:
     
     int checkUrl(char *url)
     {
+        char prevChar = 0;
         for(int i=0;i < REQUEST_BUFFER_SIZE && urlBuffer[i]!=0 ;++i)
         {
             if(!((urlBuffer[i]>='a' && urlBuffer[i]<='z') ||
@@ -107,6 +108,11 @@ public:
             {
                 return -1;
             }
+            if(urlBuffer[i] == '.' && urlBuffer[i] == prevChar)
+            {
+                return -1;
+            }
+            prevChar = urlBuffer[i];
         }
         return 0;
     }
