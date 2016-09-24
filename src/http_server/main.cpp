@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     ServerParameters params;
 	params.port = 7000;
 	params.maxClients = 10;
-    strcpy(params.rootFolder, "/mnt/programs/programs/git/tools/src/http_server/build/data");
+    strcpy(params.rootFolder, "/media/vova/programs/programs/git/tools/src/http_server/build/data");
 
 	srv.run(params);
 
