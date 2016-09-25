@@ -4,6 +4,7 @@
 #include <vector>
 #include <stack>
 #include <unordered_map>
+#include <signal.h>
 
 #include <ClientExecutor.h>
 #include <ServerExecutor.h>
@@ -98,6 +99,8 @@ public:
 
     int run(ServerParameters &params)
 	{
+        signal(SIGPIPE, SIG_IGN);
+
 		if(initDataStructs(params) != 0)
 		{
 			destroy();
@@ -133,6 +136,8 @@ public:
 
 		while(epollFd > 0)
 		{
+            printStats();
+
 			int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
 			if(nEvents == -1)
 			{
@@ -279,6 +284,11 @@ public:
 	}
 
 protected:
+
+    void printStats()
+    {
+        printf("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecutors.size());
+    }
 
 	ServerExecutor serverExecutor;
 	ClientExecutor *clientExecutors = nullptr;

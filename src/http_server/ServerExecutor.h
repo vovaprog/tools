@@ -57,20 +57,12 @@ public:
 		struct sockaddr_in address;
 		socklen_t addrlen = sizeof(address);
 
-		int clientSockFd = accept(serverSocketFd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
+        int clientSockFd = accept4(serverSocketFd, (struct sockaddr *)&address, (socklen_t*)&addrlen, SOCK_NONBLOCK);
 
 		if(clientSockFd == -1)
 		{
 			perror("accept failed");
 			result.action = ProcessResult::Action::shutdown;
-			return -1;
-		}
-
-		if(!setNonBlock(clientSockFd))
-		{
-			printf("setNonBlock failed\n");
-			close(clientSockFd);
-			result.action = ProcessResult::Action::none;
 			return -1;
 		}
 
