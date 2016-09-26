@@ -23,6 +23,7 @@
 #include <FileUtils.h>
 #include <ServerParameters.h>
 #include <ServerContext.h>
+#include <NetworkUtils.h>
 
 class ClientExecutor: public Executor {
 public:    
@@ -129,42 +130,54 @@ public:
 
         if(buffer.startRead(data, size))
         {
-            char *cdata = (char*)data;
+			if(size > 1)
+			{
+				char *cdata = (char*)data;
 
-            char saveChar;
-            if(size > 1)
-            {
-                saveChar = cdata[size - 1];
-                cdata[size - 1] = 0;
+				char *endOfHeaders = strstr(cdata, "\r\n\r\n");
 
-				char urlBuffer[REQUEST_BUFFER_SIZE];
+				if(endOfHeaders != nullptr)
+				{
+					char saveChar;
 
-                if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
-                {
-                    if(checkUrl(urlBuffer) != 0)
-                    {
-						ctx->log->info("invalid url\n");
-                        return -2;
-                    }
+					saveChar = cdata[size - 1];
+					cdata[size - 1] = 0;
 
-					ctx->log->debug("url: %s\n", urlBuffer);
+					char urlBuffer[REQUEST_BUFFER_SIZE];
 
-					ctx->fileNameBuffer[ctx->rootFolderLength] = 0;
+					if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
+					{
+						if(checkUrl(urlBuffer) != 0)
+						{
+							ctx->log->info("invalid url\n");
+							return -2;
+						}
 
-                    if(strcmp(urlBuffer, "/") == 0)
-                    {
-						strcat(ctx->fileNameBuffer, "index.html");
-                    }
-                    else
-                    {
-						strcat(ctx->fileNameBuffer, urlBuffer);
-                    }
+						ctx->log->debug("url: %s\n", urlBuffer);
 
-                    return 0;
-                }
+						ctx->fileNameBuffer[ctx->rootFolderLength] = 0;
 
-                cdata[size - 1] = saveChar;
-            }
+						if(strcmp(urlBuffer, "/") == 0)
+						{
+							strcat(ctx->fileNameBuffer, "index.html");
+						}
+						else
+						{
+							strcat(ctx->fileNameBuffer, urlBuffer);
+						}
+
+						if(strncmp(urlBuffer,"/gallery",strlen("/gallery"))==0)
+						{
+							cdata[size - 1] = saveChar;
+							return 33;
+						}
+
+						return 0;
+					}
+
+					cdata[size - 1] = saveChar;
+				}
+			}
         }
         return -1;
 	}
@@ -190,6 +203,32 @@ public:
         }
     }
 
+	void connectUWSGI()
+	{
+		int sck = socketConnect("127.0.0.1", 7070);
+
+		void *data;
+		int size;
+
+		if(buffer.startRead(data, size))
+		{
+			char *cdata = (char*)data;
+			printf("%s\n",cdata);fflush(stdout);
+			char *endOfHeaders = strstr(cdata, "\r\n\r\n");
+			endOfHeaders[4] = 0;
+			size = strlen(cdata);
+
+			int rrr = writeBytes(sck, cdata, size);
+
+			char resp[100000];
+			int outBytes = readBytes(sck, resp, 10000);
+			perror("readBytes");
+			resp[outBytes] = 0;
+			printf("[[[%s]]]",resp);fflush(stdout);
+			close(sck);
+		}
+	}
+
     int process_readRequestReadSocket(ProcessResult &result)
     {        
         if(readRequest() != 0)
@@ -199,6 +238,11 @@ public:
         }
         
         int parseRequestResult = parseRequest();
+
+		if(parseRequestResult == 33)
+		{
+			connectUWSGI();
+		}
 
         if(parseRequestResult == 0)
         {
