@@ -22,6 +22,7 @@
 #include <TransferRingBuffer.h>
 #include <FileUtils.h>
 #include <ServerParameters.h>
+#include <ServerContext.h>
 
 class ClientExecutor: public Executor {
 public:    
@@ -30,13 +31,9 @@ public:
         down();
     }
 
-    int init(ServerParameters &params)
+	int init(ServerParameters &params, ServerContext &context)
     {
-        strcpy(fileName, params.rootFolder);
-        strcat(fileName, "/");
-        rootFolderLength = strlen(fileName);
-
-        buffer.init(REQUEST_BUFFER_SIZE);
+		this->ctx = &context;
 
         return 0;
     }
@@ -47,8 +44,8 @@ public:
         
         this->clientSocketFd = clientSocketFd;        
 		bytesToSend = 0;
-		filePosition = 0;        
-        buffer.clear();
+		filePosition = 0;
+		buffer.init(REQUEST_BUFFER_SIZE);
 
         state = State::readRequest;
 
@@ -70,11 +67,11 @@ public:
                 {
                     if(rd == 0 && errno == 0)
                     {
-                        printf("client disconnected\n");
+						ctx->log->debug("client disconnected\n");
                     }
                     else
                     {
-                        printf("read failed: %s\n", strerror(errno));
+						ctx->log->info("read failed: %s\n", strerror(errno));
 					}
 					return -1;
                 }
@@ -86,7 +83,7 @@ public:
 		}
 		else
 		{
-			printf("requestBuffer.startWrite failed");
+			ctx->log->warning("requestBuffer.startWrite failed");
 			return -1;
 		}
 
@@ -99,7 +96,7 @@ public:
 		state = State::invalid;
     }
     
-    int checkUrl(char *url)
+	int checkUrl(char *urlBuffer)
     {
         char prevChar = 0;
         int i;
@@ -118,7 +115,7 @@ public:
             }
             prevChar = urlBuffer[i];
         }
-        if(rootFolderLength + i > MAX_FILE_NAME)
+		if(ctx->rootFolderLength + i > ServerContext::MAX_FILE_NAME)
         {
             return -1;
         }
@@ -140,25 +137,27 @@ public:
                 saveChar = cdata[size - 1];
                 cdata[size - 1] = 0;
 
+				char urlBuffer[REQUEST_BUFFER_SIZE];
+
                 if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
                 {
                     if(checkUrl(urlBuffer) != 0)
                     {
-                        printf("invalid url\n");
+						ctx->log->info("invalid url\n");
                         return -2;
                     }
 
-                    printf("url: %s\n", urlBuffer);
+					ctx->log->debug("url: %s\n", urlBuffer);
 
-                    fileName[rootFolderLength] = 0;
+					ctx->fileNameBuffer[ctx->rootFolderLength] = 0;
 
                     if(strcmp(urlBuffer, "/") == 0)
                     {
-                        strcat(fileName, "index.html");
+						strcat(ctx->fileNameBuffer, "index.html");
                     }
                     else
                     {
-                        strcat(fileName, urlBuffer);
+						strcat(ctx->fileNameBuffer, urlBuffer);
                     }
 
                     return 0;
@@ -179,14 +178,14 @@ public:
 
         if(buffer.startWrite(data, size))
         {
-            sprintf((char*)data,"HTTP/1.1 200 Ok\r\nContent-Length: %lld\r\n\r\n", bytesToSend);
+			sprintf((char*)data,"HTTP/1.1 200 Ok\r\nContent-Length: %lld\r\nConnection: close\r\n\r\n", bytesToSend);
             size = strlen((char*)data);
             buffer.endWrite(size);
             return 0;
         }
         else
         {
-            printf("buffer.startWrite failed\n");
+			ctx->log->warning("buffer.startWrite failed\n");
             return -1;
         }
     }
@@ -203,16 +202,16 @@ public:
 
         if(parseRequestResult == 0)
         {
-			bytesToSend = fileSize(fileName);
+			bytesToSend = fileSize(ctx->fileNameBuffer);
 
             if(bytesToSend < 0)
             {
-                printf("fileSize failed\n");
+				ctx->log->info("fileSize failed: %s\n", strerror(errno));
                 closeResult(result);
                 return -1;
             }
 
-			fileFd = open(fileName, O_NONBLOCK | O_RDONLY);
+			fileFd = open(ctx->fileNameBuffer, O_NONBLOCK | O_RDONLY);
             
             if(fileFd < 0)
             {
@@ -326,7 +325,7 @@ public:
             return process_sendFile(result);
 		}
 
-		printf("invalid process call\n");
+		ctx->log->warning("invalid process call\n");
 		result.action = ProcessResult::Action::none;
 		return 0;
     }
@@ -360,7 +359,6 @@ public:
 
 protected:
     static const int REQUEST_BUFFER_SIZE = 1000;
-    static const int MAX_FILE_NAME = 300;
 
     enum class State { readRequest, sendResponse, sendFile, invalid };
 
@@ -374,9 +372,7 @@ protected:
 
     TransferRingBuffer buffer;
 
-    char fileName[MAX_FILE_NAME + 1];
-    int rootFolderLength = 0;
-    char urlBuffer[REQUEST_BUFFER_SIZE];
+	ServerContext *ctx = nullptr;
 };
 
 #endif

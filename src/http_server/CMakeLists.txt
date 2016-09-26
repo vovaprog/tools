@@ -11,7 +11,9 @@ set(SOURCE
     ClientExecutor.h
     Server.h
     ServerParameters.h
+    ServerContext.h
     ProcessResult.h
+    Log.h LogStdout.h
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
     ../cpp/TransferRingBuffer.h)

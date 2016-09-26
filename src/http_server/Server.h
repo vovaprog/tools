@@ -10,6 +10,8 @@
 #include <ServerExecutor.h>
 #include <ProcessResult.h>
 #include <ServerParameters.h>
+#include <ServerContext.h>
+#include <LogStdout.h>
 
 class Server {
 public:
@@ -61,7 +63,7 @@ public:
 		}
         for(int i=0;i<MAX_CLIENTS;++i)
         {
-            clientExecutors[i].init(params);
+			clientExecutors[i].init(params, ctx);
         }
 		return 0;
 	}
@@ -70,7 +72,7 @@ public:
 	{
 		if(emptyDes.size() == 0)
 		{
-			printf("too many connections\n");
+			ctx.log->error("too many connections\n");
 			return -1;
 		}
 
@@ -99,7 +101,16 @@ public:
 
     int run(ServerParameters &params)
 	{
+		strcpy(ctx.fileNameBuffer, params.rootFolder);
+		strcat(ctx.fileNameBuffer, "/");
+		ctx.rootFolderLength = strlen(ctx.fileNameBuffer);
+
+		logStdout.init(params.logLevel);
+		ctx.log = &logStdout;
+
+
         signal(SIGPIPE, SIG_IGN);
+
 
 		if(initDataStructs(params) != 0)
 		{
@@ -113,7 +124,7 @@ public:
 		{
 			return -1;
 		}
-		serverExecutor.init(serverSockFd);
+		serverExecutor.init(params, ctx, serverSockFd);
 
 
 		epollFd = epoll_create1(0);
@@ -184,7 +195,7 @@ public:
 	{
 		if(emptyExecutors.size() == 0 || emptyDes.size() == 0)
 		{
-			printf("too many connections!");
+			ctx.log->error("too many connections!\n");
 			return -1;
 		}
 		int executorIndex = emptyExecutors.top();		
@@ -223,7 +234,7 @@ public:
 			}
 			else
 			{
-				printf("des not found\n");
+				ctx.log->error("des not found\n");
 			}
 		}
 
@@ -251,7 +262,7 @@ public:
 			ev.data.ptr = result.pDe;
 			if(epoll_ctl(epollFd, EPOLL_CTL_MOD, result.editFd, &ev) == -1)
 			{
-				perror("epoll_ctl failed");
+				ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
 				ret = -1;
 			}
 		}
@@ -278,7 +289,7 @@ public:
         case ProcessResult::Action::none:
             return 0;
 		default:
-			printf("unknown action\n");
+			ctx.log->error("unknown action\n");
 			return -1;
 		}
 	}
@@ -287,7 +298,7 @@ protected:
 
     void printStats()
     {
-        printf("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecutors.size());
+		ctx.log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecutors.size());
     }
 
 	ServerExecutor serverExecutor;
@@ -302,6 +313,9 @@ protected:
 	int epollFd = -1;
 
 	int MAX_CLIENTS = 0, MAX_EVENTS = 0;
+
+	ServerContext ctx;
+	LogStdout logStdout;
 };
 
 #endif

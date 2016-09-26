@@ -20,6 +20,7 @@
 
 #include <ProcessResult.h>
 #include <NetworkUtils.h>
+#include <ServerContext.h>
 
 class ServerExecutor: public Executor {
 public:
@@ -28,10 +29,11 @@ public:
 		stop();
 	}
 
-	int init(int serverSocketFd)
+	int init(ServerParameters &params, ServerContext &context, int serverSocketFd)
 	{
 		stop();
-		this->serverSocketFd = serverSocketFd;
+		this->serverSocketFd = serverSocketFd;		
+		ctx = &context;
 		return 0;
 	}
 
@@ -49,7 +51,7 @@ public:
 	{
 		if(fd != serverSocketFd)
 		{
-			printf("invalid file\n");
+			ctx->log->error("invalid file\n");
 			result.action = ProcessResult::Action::none;
 			return -1;
 		}
@@ -61,7 +63,7 @@ public:
 
 		if(clientSockFd == -1)
 		{
-			perror("accept failed");
+			ctx->log->error("accept failed: %s", strerror(errno));
 			result.action = ProcessResult::Action::shutdown;
 			return -1;
 		}
@@ -79,6 +81,8 @@ public:
 	}
 protected:
 	int serverSocketFd = -1;
+
+	ServerContext *ctx;
 };
 
 #endif

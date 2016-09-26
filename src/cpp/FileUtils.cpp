@@ -10,6 +10,5 @@ long long int fileSize(const char *filename)
         return st.st_size;
     }
 
-    perror("stat failed");
     return -1; 
 }
