@@ -1,14 +1,14 @@
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
-#include "ProcessResult.h"
+#include <ProcessResult.h>
+#include <ExecutorData.h>
 
 class Executor {
-public:
-	static const int MAX_FDS_OF_EXECUTOR = 2;
+public:	
 
-	virtual int process(int fd, int events, ProcessResult &result) = 0;
-	virtual int getFds(int *fds) = 0;
+	virtual int process(ExecutorData &data, int fd, int events, ProcessResult &result) = 0;
+
 };
 
 #endif

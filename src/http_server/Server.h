@@ -12,6 +12,8 @@
 #include <ServerParameters.h>
 #include <ServerContext.h>
 #include <LogStdout.h>
+#include <ExecutorData.h>
+#include <PollData.h>
 
 class Server {
 public:
@@ -49,8 +51,8 @@ public:
 		MAX_CLIENTS = params.maxClients;
 		MAX_EVENTS = MAX_CLIENTS * 2 + 1;
 
-		clientExecutors = new ClientExecutor[MAX_CLIENTS];
-		des = new DescriptorExecutor[MAX_EVENTS];
+		execDatas = new ExecutorData[MAX_CLIENTS];
+		pollDatas = new PollData[MAX_EVENTS];
 		events = new epoll_event[MAX_EVENTS];
 
 		for(int i = MAX_CLIENTS - 1; i >= 0; --i)
@@ -61,42 +63,77 @@ public:
 		{
 			emptyDes.push(i);
 		}
-        for(int i=0;i<MAX_CLIENTS;++i)
+		/*for(int i=0;i<MAX_CLIENTS;++i)
         {
 			clientExecutors[i].init(params, ctx);
-        }
+		}*/
 		return 0;
 	}
 
-	int addPollFd(int fd, uint32_t events, Executor *pExecutor, int executorIndex)
+	int addPollFd(int fd, uint32_t events, int execIndex)
 	{
-		if(emptyDes.size() == 0)
+		if(emptyPollDatas.size() == 0)
 		{
 			ctx.log->error("too many connections\n");
 			return -1;
 		}
 
-		int index = emptyDes.top();
+		int pollIndex = emptyPollDatas.top();
 
 		epoll_event ev;
 		ev.events = events;
-		ev.data.ptr = &des[index];
+		ev.data.ptr = &pollDatas[pollIndex];
 		if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
 		{
 			perror("epoll_ctl failed");
 			return -1;
 		}
 
-		des[index].fd = fd;
-		des[index].executorIndex = executorIndex;
+		pollDatas[index].fd = fd;
+		pollDatas[index].executorDataIndex = execIndex;
 
-		fd2Des[fd] = index;
+		if(fd == execDatas[execIndex].fd0)
+		{
+			execDatas[execIndex].pollIndexFd0 = pollIndex;
+		}
+		else
+		{
+			execDatas[execIndex].pollIndexFd1 = pollIndex;
+		}
 
-		emptyDes.pop();
+		emptyPollDatas.pop();
 
 		return 0;
 	}
 
+
+	int openServerSocket(ServerParameters &params)
+	{
+		int serverSockFd = socketListen(params.port);
+		if(serverSockFd < 0)
+		{
+			return -1;
+		}
+
+		int execIndex = emptyExecDatas.top();
+		execDatas[execIndex].fd0 = serverSockFd;
+		execDatas[execIndex].pExecutor = &serverExecutor;
+
+		int pollIndex = emptyPollDatas.top();
+		pollDatas[pollIndex].fd = serverSockFd;
+		pollDatas[pollIndex].executorDataIndex = execIndex;
+
+		if(addPollFd(execDatas[execIndex].fd0, EPOLLIN, &pollDatas[pollIndex], -1) != 0)
+		{
+			close(serverSockFd);
+			return -1;
+		}
+
+		emptyExecDatas.pop();
+		emptyPollDatas.pop();
+
+		return 0;
+	}
 
 
     int run(ServerParameters &params)
@@ -119,14 +156,6 @@ public:
 		}
 
 
-		int serverSockFd = socketListen(params.port);
-		if(serverSockFd < 0)
-		{
-			return -1;
-		}
-		serverExecutor.init(params, ctx, serverSockFd);
-
-
 		epollFd = epoll_create1(0);
 		if(epollFd == -1)
 		{
@@ -136,7 +165,7 @@ public:
 		}
 
 
-		if(addPollFd(serverSockFd, EPOLLIN, &serverExecutor, -1) != 0)
+		if(openServerSocket(params) != 0)
 		{
 			destroy();
 			return -1;
@@ -166,23 +195,13 @@ public:
 
 			for(int i = 0; i < nEvents; ++i)
 			{
-				DescriptorExecutor *pDe = static_cast<DescriptorExecutor*>(events[i].data.ptr);
-
-				Executor *pExecutor = nullptr;
-
-				if(pDe->fd == serverSockFd)
-				{
-					pExecutor = &serverExecutor;
-				}
-				else
-				{
-					pExecutor = &clientExecutors[pDe->executorIndex];
-				}
+				PollData *pollData = static_cast<DescriptorExecutor*>(events[i].data.ptr);
+				ExecutorData &execData = execDatas[pollData->executorDataIndex];
 
 				result.reset();
-				result.pDe = pDe;
+				result.pollData = pollData;
 
-				pExecutor->process(pDe->fd, events[i].events, result);
+				execData.pExecutor->process(execData, pollData->fd, events[i].events, result);
 
 				handleResult(result);
 			}
@@ -193,58 +212,49 @@ public:
 
 	int handleResult_createExecutor(ProcessResult result)
 	{
-		if(emptyExecutors.size() == 0 || emptyDes.size() == 0)
+		if(emptyExecDatas.size() == 0 || emptyPollDatas.size() == 0)
 		{
 			ctx.log->error("too many connections!\n");
 			return -1;
 		}
-		int executorIndex = emptyExecutors.top();		
+		int execIndex = emptyExecDatas.top();
 
-        clientExecutors[executorIndex].up(result.addFd);
+		execDatas[execIndex].pExecutor = &requestExecutor;
+		requestExecutor.up(execDatas[execIndex], result.addFd);
 
-		if(addPollFd(result.addFd, result.addFdEvents, &clientExecutors[executorIndex], executorIndex) != 0)
+		if(addPollFd(result.addFd, result.addFdEvents, execIndex) != 0)
 		{
 			return -1;
 		}
 
-		emptyExecutors.pop();
+		emptyExecDatas.pop();
+
+		return 0;
+	}
+
+	int removeExecutor(int execIndex)
+	{
+		if(execDatas[execIndex].pollIndexFd0 >=0)
+		{
+			emptyPollDatas.push(execDatas[execIndex].pollIndexFd0);
+		}
+		if(execDatas[execIndex].pollIndexFd1 >=0)
+		{
+			emptyPollDatas.push(execDatas[execIndex].pollIndexFd1);
+		}
+
+		execDatas[execIndex].down();
+
+		emptyExecDatas.push(execIndex);
 
 		return 0;
 	}
 
 	int handleResult_removeExecutor(ProcessResult &result)
 	{
-		int executorIndex = result.pDe->executorIndex;
+		int execIndex = result.pollData->executorDataIndex;
 
-		int fdsOfExecutor[Executor::MAX_FDS_OF_EXECUTOR];
-
-		int numberOfFds = clientExecutors[result.pDe->executorIndex].getFds(fdsOfExecutor);
-
-		for(int i=0;i<numberOfFds;++i)
-		{
-			auto iter = fd2Des.find(fdsOfExecutor[i]);
-			if(iter != fd2Des.end())
-			{
-				int desIndex = iter->second;
-
-				des[desIndex].fd = -1;
-				des[desIndex].executorIndex = -1;
-				emptyDes.push(desIndex);
-				fd2Des.erase(iter);
-			}
-			else
-			{
-				ctx.log->error("des not found\n");
-			}
-		}
-
-		if(executorIndex >= 0)
-		{
-            clientExecutors[executorIndex].down();
-			emptyExecutors.push(executorIndex);
-		}
-
-		return 0;
+		return removeExecutor(execIndex);
 	}
 
 	int handleResult_editPoll(ProcessResult &result)
@@ -253,13 +263,13 @@ public:
 
 		if(result.addFd > 0)
 		{
-			ret = addPollFd(result.addFd, result.addFdEvents, &clientExecutors[result.pDe->executorIndex], result.pDe->executorIndex);
+			ret = addPollFd(result.addFd, result.addFdEvents, result.pollData->executorDataIndex);
 		}
 		if(result.editFd > 0)
 		{
 			epoll_event ev;
 			ev.events = result.editFdEvents;
-			ev.data.ptr = result.pDe;
+			ev.data.ptr = result.pollData;
 			if(epoll_ctl(epollFd, EPOLL_CTL_MOD, result.editFd, &ev) == -1)
 			{
 				ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
@@ -267,6 +277,18 @@ public:
 			}
 		}
 		return ret;
+	}
+
+	int handleResult_setFileExecutor(ProcessResult &result)
+	{
+		int execIndex = result.pollData->executorDataIndex;
+		execDatas[execIndex].pExecutor = &fileExecutor;
+		if(fileExecutor.up(execDatas[execIndex])!=0)
+		{
+			removeExecutor(execIndex);
+			return -1;
+		}
+		return 0;
 	}
 
 	int handleResult_shutdown(ProcessResult &result)
@@ -280,14 +302,22 @@ public:
 		switch(result.action){
 		case ProcessResult::Action::createExecutor:
 			return handleResult_createExecutor(result);
+
 		case ProcessResult::Action::removeExecutor:
 			return handleResult_removeExecutor(result);
+
 		case ProcessResult::Action::editPoll:
 			return handleResult_editPoll(result);
+
 		case ProcessResult::Action::shutdown:
 			return handleResult_shutdown(result);
+
+		case ProcessResult::Action::setFileExecutor:
+			return handleResult_setFileExecutor(result);
+
         case ProcessResult::Action::none:
             return 0;
+
 		default:
 			ctx.log->error("unknown action\n");
 			return -1;
@@ -298,24 +328,28 @@ protected:
 
     void printStats()
     {
-		ctx.log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecutors.size());
+		ctx.log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecDatas.size() - 1);
     }
 
 	ServerExecutor serverExecutor;
-	ClientExecutor *clientExecutors = nullptr;
-	DescriptorExecutor *des = nullptr;
+	RequestExecutor requestExecutor;
+	FileExecutor fileExecutor;
+	UwsgiExecutor uwsgiExecutor;
+
+	ServerContext ctx;
+	LogStdout logStdout;
+
+	ExecutorData *execDatas = nullptr;
+	PollData *pollDatas = nullptr;
 	epoll_event *events = nullptr;
 
-	std::stack<int, std::vector<int>> emptyExecutors;
-	std::stack<int, std::vector<int>> emptyDes;
-	std::unordered_map<int,int> fd2Des;
+	std::stack<int, std::vector<int>> emptyExecDatas;
+	std::stack<int, std::vector<int>> emptyPollDatas;
 
 	int epollFd = -1;
 
 	int MAX_CLIENTS = 0, MAX_EVENTS = 0;
 
-	ServerContext ctx;
-	LogStdout logStdout;
 };
 
 #endif
