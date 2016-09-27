@@ -24,41 +24,42 @@
 #include <Executor.h>
 #include <ExecutorData.h>
 
-class ServerExecutor: public Executor {
+class ServerExecutor: public Executor
+{
 public:
 
-	int up(ExecutorData &data) override
-	{
-		return 0;
-	}
+    int up(ExecutorData &data) override
+    {
+        return 0;
+    }
 
-	int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
-	{
-		if(fd != data.fd0)
-		{
-			data.ctx->log->error("invalid file\n");
-			result.action = ProcessResult::Action::none;
-			return -1;
-		}
+    int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
+    {
+        if(fd != data.fd0)
+        {
+            data.ctx->log->error("invalid file\n");
+            result.action = ProcessResult::Action::none;
+            return -1;
+        }
 
-		struct sockaddr_in address;
-		socklen_t addrlen = sizeof(address);
+        struct sockaddr_in address;
+        socklen_t addrlen = sizeof(address);
 
-		int clientSockFd = accept4(data.fd0, (struct sockaddr *)&address, (socklen_t*)&addrlen, SOCK_NONBLOCK);
+        int clientSockFd = accept4(data.fd0, (struct sockaddr *)&address, (socklen_t*)&addrlen, SOCK_NONBLOCK);
 
-		if(clientSockFd == -1)
-		{
-			data.ctx->log->error("accept failed: %s", strerror(errno));
-			result.action = ProcessResult::Action::shutdown;
-			return -1;
-		}
+        if(clientSockFd == -1)
+        {
+            data.ctx->log->error("accept failed: %s", strerror(errno));
+            result.action = ProcessResult::Action::shutdown;
+            return -1;
+        }
 
-		result.action = ProcessResult::Action::createExecutor;
-		result.addFd = clientSockFd;
+        result.action = ProcessResult::Action::createExecutor;
+        result.addFd = clientSockFd;
         result.addFdEvents = EPOLLIN;
 
-		return 0;
-	}
+        return 0;
+    }
 };
 
 #endif

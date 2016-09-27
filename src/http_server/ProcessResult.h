@@ -5,33 +5,34 @@
 
 class Executor;
 
-struct ProcessResult {
-	enum class Action { createExecutor, removeExecutor, none, shutdown, setFileExecutor, setUwsgiExecutor, editPoll };
+struct ProcessResult
+{
+    enum class Action { createExecutor, removeExecutor, none, shutdown, setFileExecutor, setUwsgiExecutor, editPoll };
 
-	Action action = Action::none;
+    Action action = Action::none;
 
-	PollData *pollData = nullptr;
+    PollData *pollData = nullptr;
 
-	int editFd0Events = 0;
-	int editFd1Events = 0;
+    int editFd0Events = 0;
+    int editFd1Events = 0;
 
-	int addFd = -1;
-	int addFdEvents = 0;
+    int addFd = -1;
+    int addFdEvents = 0;
 
-	void reset()
-	{
-		action = Action::none;
-		pollData = nullptr;
-		addFd = -1;
-		addFdEvents = 0;
-		editFd0Events = 0;
-		editFd1Events = 0;
-	}
+    void reset()
+    {
+        action = Action::none;
+        pollData = nullptr;
+        addFd = -1;
+        addFdEvents = 0;
+        editFd0Events = 0;
+        editFd1Events = 0;
+    }
 
-	void closeResult()
-	{
-		action = ProcessResult::Action::removeExecutor;
-	}
+    void closeResult()
+    {
+        action = ProcessResult::Action::removeExecutor;
+    }
 };
 
 #endif

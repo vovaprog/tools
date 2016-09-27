@@ -4,16 +4,17 @@
 #include <Log.h>
 #include <ServerParameters.h>
 
-struct ServerContext {
+struct ServerContext
+{
 
-	Log *log = nullptr;
+    Log *log = nullptr;
 
-	static const int MAX_FILE_NAME = 300;
+    static const int MAX_FILE_NAME = 300;
 
-	char fileNameBuffer[MAX_FILE_NAME + 1];
-	int rootFolderLength = 0;
+    char fileNameBuffer[MAX_FILE_NAME + 1];
+    int rootFolderLength = 0;
 
-	ServerParameters parameters;
+    ServerParameters parameters;
 };
 
 #endif
