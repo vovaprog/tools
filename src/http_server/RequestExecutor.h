@@ -97,7 +97,8 @@ protected:
             if(!((urlBuffer[i]>='a' && urlBuffer[i]<='z') ||
                (urlBuffer[i]>='A' && urlBuffer[i]<='Z') ||
                (urlBuffer[i]>='0' && urlBuffer[i]<='9') ||
-               urlBuffer[i]=='/' || urlBuffer[i]=='.'))
+               urlBuffer[i]=='/' || urlBuffer[i]=='.' || urlBuffer[i]=='_' ||
+               urlBuffer[i] == '=' || urlBuffer[i]=='?' || urlBuffer[i]=='-'))
             {
                 return -1;
             }
@@ -117,9 +118,9 @@ protected:
 	bool isUrlPrefix(char *url, char *prefix)
 	{
 		int i;
-		for(i=0;url[i]!=0 && prefix[i]!=0;++i);
+        for(i=0;url[i]!=0 && prefix[i]!=0 && url[i] == prefix[i];++i);
 
-		if((prefix[i] == 0 || prefix[i] == '/') && (url[i] == 0 || url[i] == '/'))
+        if((prefix[i] == 0 || prefix[i] == '/') && (url[i] == 0 || url[i] == '/' || url[i]=='?'))
 		{
 			return true;
 		}
@@ -146,7 +147,7 @@ protected:
 				{
 					if(size < ExecutorData::REQUEST_BUFFER_SIZE)
 					{
-						cdata[size - 1] = 0;
+                        cdata[size] = 0;
 					}
 					else
 					{

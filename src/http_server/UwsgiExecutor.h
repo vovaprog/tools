@@ -12,7 +12,7 @@
 class UwsgiExecutor: public Executor {
 public:
 
-	int up(ExecutorData &data) override
+    int up(ExecutorData &data) override
 	{
 		data.fd1 = socketConnect("127.0.0.1", 7070);
 

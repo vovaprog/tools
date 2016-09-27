@@ -45,6 +45,8 @@ struct ExecutorData {
 
 		bytesToSend = 0;
 		filePosition = 0;
+
+        buffer.clear();
 		return;
 	}
 
