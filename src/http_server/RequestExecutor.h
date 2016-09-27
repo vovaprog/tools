@@ -1,5 +1,5 @@
-#ifndef CLIENT_EXECUTOR_H
-#define CLIENT_EXECUTOR_H
+#ifndef REQUEST_EXECUTOR_H
+#define REQUEST_EXECUTOR_H
 
 #include <sys/sendfile.h>
 #include <errno.h>
@@ -29,14 +29,20 @@
 class RequestExecutor: public Executor {
 public:
 
+	int up(ExecutorData &data) override
+	{
+		data.buffer.init(ExecutorData::REQUEST_BUFFER_SIZE);
+		return 0;
+	}
+
 	int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
 	{
-		if(data.state == ExecutorData::State::readRequest && fd == clientSocketFd && (events & EPOLLIN))
+		if(data.state == ExecutorData::State::readRequest && fd == data.fd0 && (events & EPOLLIN))
 		{
 			return process_readRequestReadSocket(data, result);
 		}
 
-		ctx->log->warning("invalid process call\n");
+		data.ctx->log->warning("invalid process call\n");
 		result.action = ProcessResult::Action::none;
 		return 0;
 	}
@@ -44,14 +50,14 @@ public:
 
 protected:
 
-    int readRequest()
+	int readRequest(ExecutorData &data)
     {
-		void *data;
+		void *p;
 		int size;
 
-        if(buffer.startWrite(data, size))
+		if(data.buffer.startWrite(p, size))
         {
-			int rd = read(clientSocketFd, data, size);
+			int rd = read(data.fd0, p, size);
     
             if(rd <= 0)
             {
@@ -59,40 +65,34 @@ protected:
                 {
                     if(rd == 0 && errno == 0)
                     {
-						ctx->log->debug("client disconnected\n");
+						data.ctx->log->debug("client disconnected\n");
                     }
                     else
                     {
-						ctx->log->info("read failed: %s\n", strerror(errno));
+						data.ctx->log->info("read failed: %s\n", strerror(errno));
 					}
 					return -1;
                 }
             }
             else
             {            
-                buffer.endWrite(rd);
+				data.buffer.endWrite(rd);
             }
 		}
 		else
 		{
-			ctx->log->warning("requestBuffer.startWrite failed");
+			data.ctx->log->warning("requestBuffer.startWrite failed");
 			return -1;
 		}
 
 		return 0;
-    }
+	}
     
-    void closeResult(ProcessResult &result)
-    {
-        result.action = ProcessResult::Action::removeExecutor;
-		state = State::invalid;
-    }
-    
-	int checkUrl(char *urlBuffer)
+	int checkUrl(ExecutorData &data, char *urlBuffer)
     {
         char prevChar = 0;
         int i;
-        for(i=0;i < REQUEST_BUFFER_SIZE && urlBuffer[i]!=0 ;++i)
+		for(i=0;i < ExecutorData::REQUEST_BUFFER_SIZE && urlBuffer[i]!=0 ;++i)
         {
             if(!((urlBuffer[i]>='a' && urlBuffer[i]<='z') ||
                (urlBuffer[i]>='A' && urlBuffer[i]<='Z') ||
@@ -107,7 +107,7 @@ protected:
             }
             prevChar = urlBuffer[i];
         }
-		if(ctx->rootFolderLength + i > ServerContext::MAX_FILE_NAME)
+		if(data.ctx->rootFolderLength + i > ServerContext::MAX_FILE_NAME)
         {
             return -1;
         }
@@ -116,16 +116,16 @@ protected:
 
 	enum class ParseRequestResult { again, file, uwsgi, invalid };
 
-	ParseRequestResult parseRequest()
+	ParseRequestResult parseRequest(ExecutorData &data)
 	{
-        void *data;
+		void *p;
         int size;
 
-        if(buffer.startRead(data, size))
+		if(data.buffer.startRead(p, size))
         {
 			if(size > 1)
 			{
-				char *cdata = (char*)data;
+				char *cdata = (char*)p;
 
 				char *endOfHeaders = strstr(cdata, "\r\n\r\n");
 
@@ -136,27 +136,27 @@ protected:
 					saveChar = cdata[size - 1];
 					cdata[size - 1] = 0;
 
-					char urlBuffer[REQUEST_BUFFER_SIZE];
+					char urlBuffer[ExecutorData::REQUEST_BUFFER_SIZE];
 
 					if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
 					{
-						if(checkUrl(urlBuffer) != 0)
+						if(checkUrl(data,urlBuffer) != 0)
 						{
-							ctx->log->info("invalid url\n");
+							data.ctx->log->info("invalid url\n");
 							return ParseRequestResult::invalid;
 						}
 
-						ctx->log->debug("url: %s\n", urlBuffer);
+						data.ctx->log->debug("url: %s\n", urlBuffer);
 
-						ctx->fileNameBuffer[ctx->rootFolderLength] = 0;
+						data.ctx->fileNameBuffer[data.ctx->rootFolderLength] = 0;
 
 						if(strcmp(urlBuffer, "/") == 0)
 						{
-							strcat(ctx->fileNameBuffer, "index.html");
+							strcat(data.ctx->fileNameBuffer, "index.html");
 						}
 						else
 						{
-							strcat(ctx->fileNameBuffer, urlBuffer);
+							strcat(data.ctx->fileNameBuffer, urlBuffer);
 						}
 
 						if(strncmp(urlBuffer,"/gallery",strlen("/gallery"))==0)
@@ -175,37 +175,16 @@ protected:
 		return ParseRequestResult::again;
 	}
 
-    int createResponse()
-    {
-        buffer.clear();
-
-        void *data;
-        int size;
-
-        if(buffer.startWrite(data, size))
-        {
-			sprintf((char*)data,"HTTP/1.1 200 Ok\r\nContent-Length: %lld\r\nConnection: close\r\n\r\n", bytesToSend);
-            size = strlen((char*)data);
-            buffer.endWrite(size);
-            return 0;
-        }
-        else
-        {
-			ctx->log->warning("buffer.startWrite failed\n");
-            return -1;
-        }
-    }
-
 
 	int process_readRequestReadSocket(ExecutorData &data, ProcessResult &result)
     {        
-        if(readRequest() != 0)
+		if(readRequest(data) != 0)
         {
-            closeResult(result);
+			result.closeResult();
             return -1;
         }
         
-		ParseRequestResult parseResult = parseRequest();
+		ParseRequestResult parseResult = parseRequest(data);
 
 		if(parseResult == ParseRequestResult::file)
         {
@@ -219,7 +198,7 @@ protected:
 		}
 		else if(parseResult == ParseRequestResult::invalid)
 		{
-			closeResult(result);
+			result.closeResult();
 			return -1;
 		}
 

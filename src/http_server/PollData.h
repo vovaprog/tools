@@ -1,5 +1,5 @@
-
-
+#ifndef POLL_DATA_H
+#define POLL_DATA_H
 
 struct PollData
 {
@@ -7,5 +7,5 @@ struct PollData
 	int executorDataIndex = -1;
 };
 
-
+#endif
 

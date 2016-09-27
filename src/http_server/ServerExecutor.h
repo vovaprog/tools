@@ -27,11 +27,16 @@
 class ServerExecutor: public Executor {
 public:
 
+	int up(ExecutorData &data) override
+	{
+		return 0;
+	}
+
 	int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
 	{
 		if(fd != data.fd0)
 		{
-			ctx->log->error("invalid file\n");
+			data.ctx->log->error("invalid file\n");
 			result.action = ProcessResult::Action::none;
 			return -1;
 		}

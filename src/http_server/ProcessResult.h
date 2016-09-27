@@ -27,6 +27,11 @@ struct ProcessResult {
 		editFd = -1;
 		editFdEvents = 0;
 	}
+
+	void closeResult()
+	{
+		action = ProcessResult::Action::removeExecutor;
+	}
 };
 
 #endif

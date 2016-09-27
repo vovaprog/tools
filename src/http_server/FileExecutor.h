@@ -1,3 +1,8 @@
+#ifndef FILE_EXECUTOR_H
+#define FILE_EXECUTOR_H
+
+#include <sys/epoll.h>
+#include <errno.h>
 
 #include <ExecutorData.h>
 #include <ProcessResult.h>
@@ -6,80 +11,98 @@
 class FileExecutor: public Executor {
 public:
 
-	int up(ExecutorData &data)
+	int up(ExecutorData &data) override
 	{
 		data.bytesToSend = fileSize(data.ctx->fileNameBuffer);
 
 		if(data.bytesToSend < 0)
 		{
 			data.ctx->log->info("fileSize failed: %s\n", strerror(errno));
-			closeResult(result);
 			return -1;
 		}
 
-		data.fd1 = open(ctx->fileNameBuffer, O_NONBLOCK | O_RDONLY);
+		data.fd1 = open(data.ctx->fileNameBuffer, O_NONBLOCK | O_RDONLY);
 
 		if(data.fd1 < 0)
 		{
 			perror("open failed");
-			closeResult(result);
 			return -1;
 		}
 
-		if(createResponse() != 0)
+		if(createResponse(data) != 0)
 		{
-			closeResult(result);
 			return -1;
 		}
 
-		result.editFd = clientSocketFd;
-		result.editFdEvents = EPOLLOUT;
-
-		result.action = ProcessResult::Action::editPoll;
-
-		state = State::sendResponse;
+		data.state = ExecutorData::State::sendResponse;
 
 		return 0;
 	}
 
 	int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
 	{
-		if(data.state == ExecutorData::State::sendResponse && fd == clientSocketFd && (events & EPOLLOUT))
+		if(data.state == ExecutorData::State::sendResponse && fd == data.fd0 && (events & EPOLLOUT))
 		{
 			return process_sendResponseSendData(data, result);
 		}
-		if(data.state == ExecutorData::State::sendFile && fd == clientSocketFd && (events & EPOLLOUT))
+		if(data.state == ExecutorData::State::sendFile && fd == data.fd0 && (events & EPOLLOUT))
 		{
 			return process_sendFile(data, result);
 		}
+
+		data.ctx->log->warning("invalid process call\n");
+		result.action = ProcessResult::Action::none;
+		return 0;
 	}
+
 
 protected:
 
-	int process_sendResponseSendData(ExecutorData &data, ProcessResult &result)
+	int createResponse(ExecutorData &data)
 	{
-		void *data;
+		data.buffer.clear();
+
+		void *p;
 		int size;
 
-		if(buffer.startRead(data, size))
+		if(data.buffer.startWrite(p, size))
 		{
-			int bytesWritten = write(clientSocketFd, data, size);
+			sprintf((char*)p,"HTTP/1.1 200 Ok\r\nContent-Length: %lld\r\nConnection: close\r\n\r\n", data.bytesToSend);
+			size = strlen((char*)p);
+			data.buffer.endWrite(size);
+			return 0;
+		}
+		else
+		{
+			data.ctx->log->warning("buffer.startWrite failed\n");
+			return -1;
+		}
+	}
+
+	int process_sendResponseSendData(ExecutorData &data, ProcessResult &result)
+	{
+		void *p;
+		int size;
+
+		if(data.buffer.startRead(p, size))
+		{
+			int bytesWritten = write(data.fd0, p, size);
 
 			if(bytesWritten <= 0)
 			{
 				if(errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
 				{
-					closeResult(result);
+					result.closeResult();
 					return -1;
 				}
 			}
 			else
 			{
-				buffer.endRead(bytesWritten);
+				data.buffer.endRead(bytesWritten);
 
 				if(bytesWritten == size)
 				{
-					state = State::sendFile;
+					data.state = ExecutorData::State::sendFile;
 				}
 			}
 
@@ -88,14 +111,14 @@ protected:
 		}
 		else
 		{
-			closeResult(result);
+			result.closeResult();
 			return -1;
 		}
 	}
 
 	int process_sendFile(ExecutorData &data, ProcessResult &result)
 	{
-		int bytesWritten = sendfile(clientSocketFd, fileFd, &filePosition, bytesToSend);
+		int bytesWritten = sendfile(data.fd0, data.fd1, &data.filePosition, data.bytesToSend);
 		if(bytesWritten <= 0)
 		{
 			if(errno == EAGAIN || errno == EWOULDBLOCK)
@@ -106,17 +129,17 @@ protected:
 			else
 			{
 				perror("sendfile failed");
-				closeResult(result);
+				result.closeResult();
 				return -1;
 			}
 
 		}
 
-		bytesToSend -= bytesWritten;
+		data.bytesToSend -= bytesWritten;
 
-		if(bytesToSend == 0)
+		if(data.bytesToSend == 0)
 		{
-			closeResult(result);
+			result.closeResult();
 			return 0;
 		}
 
@@ -124,3 +147,5 @@ protected:
 		return 0;
 	}
 };
+
+#endif

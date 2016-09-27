@@ -6,7 +6,8 @@
 #include <unordered_map>
 #include <signal.h>
 
-#include <ClientExecutor.h>
+#include <RequestExecutor.h>
+#include <FileExecutor.h>
 #include <ServerExecutor.h>
 #include <ProcessResult.h>
 #include <ServerParameters.h>
@@ -24,15 +25,15 @@ public:
 
 	void destroy()
 	{
-		if(clientExecutors!=nullptr)
+		if(execDatas!=nullptr)
 		{
-			delete[] clientExecutors;
-			clientExecutors = nullptr;
+			delete[] execDatas;
+			execDatas = nullptr;
 		}
-		if(des!=nullptr)
+		if(pollDatas!=nullptr)
 		{
-			delete[] des;
-			des = nullptr;
+			delete[] pollDatas;
+			pollDatas = nullptr;
 		}
 		if(events!=nullptr)
 		{
@@ -57,16 +58,16 @@ public:
 
 		for(int i = MAX_CLIENTS - 1; i >= 0; --i)
 		{
-			emptyExecutors.push(i);
+			emptyExecDatas.push(i);
 		}
 		for(int i = MAX_EVENTS - 1; i >= 0; --i)
 		{
-			emptyDes.push(i);
+			emptyPollDatas.push(i);
 		}
-		/*for(int i=0;i<MAX_CLIENTS;++i)
+		for(int i=0;i<MAX_CLIENTS;++i)
         {
-			clientExecutors[i].init(params, ctx);
-		}*/
+			execDatas[i].ctx = &ctx;
+		}
 		return 0;
 	}
 
@@ -89,8 +90,8 @@ public:
 			return -1;
 		}
 
-		pollDatas[index].fd = fd;
-		pollDatas[index].executorDataIndex = execIndex;
+		pollDatas[pollIndex].fd = fd;
+		pollDatas[pollIndex].executorDataIndex = execIndex;
 
 		if(fd == execDatas[execIndex].fd0)
 		{
@@ -123,7 +124,7 @@ public:
 		pollDatas[pollIndex].fd = serverSockFd;
 		pollDatas[pollIndex].executorDataIndex = execIndex;
 
-		if(addPollFd(execDatas[execIndex].fd0, EPOLLIN, &pollDatas[pollIndex], -1) != 0)
+		if(addPollFd(execDatas[execIndex].fd0, EPOLLIN, execIndex) != 0)
 		{
 			close(serverSockFd);
 			return -1;
@@ -195,7 +196,7 @@ public:
 
 			for(int i = 0; i < nEvents; ++i)
 			{
-				PollData *pollData = static_cast<DescriptorExecutor*>(events[i].data.ptr);
+				PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
 				ExecutorData &execData = execDatas[pollData->executorDataIndex];
 
 				result.reset();
@@ -220,7 +221,10 @@ public:
 		int execIndex = emptyExecDatas.top();
 
 		execDatas[execIndex].pExecutor = &requestExecutor;
-		requestExecutor.up(execDatas[execIndex], result.addFd);
+		execDatas[execIndex].state = ExecutorData::State::readRequest;
+		execDatas[execIndex].fd0 = result.addFd;
+
+		requestExecutor.up(execDatas[execIndex]);
 
 		if(addPollFd(result.addFd, result.addFdEvents, execIndex) != 0)
 		{
@@ -283,11 +287,23 @@ public:
 	{
 		int execIndex = result.pollData->executorDataIndex;
 		execDatas[execIndex].pExecutor = &fileExecutor;
+
 		if(fileExecutor.up(execDatas[execIndex])!=0)
 		{
 			removeExecutor(execIndex);
 			return -1;
 		}
+
+		epoll_event ev;
+		ev.events = EPOLLOUT;
+		ev.data.ptr = result.pollData;
+		if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd0, &ev) == -1)
+		{
+			ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
+			removeExecutor(execIndex);
+			return -1;
+		}
+
 		return 0;
 	}
 
@@ -334,7 +350,7 @@ protected:
 	ServerExecutor serverExecutor;
 	RequestExecutor requestExecutor;
 	FileExecutor fileExecutor;
-	UwsgiExecutor uwsgiExecutor;
+	//UwsgiExecutor uwsgiExecutor;
 
 	ServerContext ctx;
 	LogStdout logStdout;

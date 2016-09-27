@@ -1,6 +1,10 @@
+#ifndef EXECUTOR_DATA_H
+#define EXECUTOR_DATA_H
 
+#include <TransferRingBuffer.h>
 
 class Executor;
+class ServerContext;
 
 struct ExecutorData {
 	~ExecutorData()
@@ -8,7 +12,7 @@ struct ExecutorData {
 		down();
 	}
 
-	int up()
+	/*int up()
 	{
 		down();
 
@@ -20,21 +24,27 @@ struct ExecutorData {
 		state = State::readRequest;
 
 		return 0;
-	}
+	}*/
 
 	void down()
 	{
-		if(clientSocketFd > 0)
+		if(fd0 > 0)
 		{
-			close(clientSocketFd);
-			clientSocketFd = -1;
+			close(fd0);
+			fd0 = -1;
 		}
-		if(fileFd > 0)
+		if(fd1 > 0)
 		{
-			close(fileFd);
-			fileFd = -1;
+			close(fd1);
+			fd1 = -1;
 		}
+		pollIndexFd0 = -1;
+		pollIndexFd1 = -1;
 		state = State::invalid;
+		pExecutor = nullptr;
+
+		bytesToSend = 0;
+		filePosition = 0;
 		return;
 	}
 
@@ -58,3 +68,5 @@ struct ExecutorData {
 
 	ServerContext *ctx = nullptr;
 };
+
+#endif
