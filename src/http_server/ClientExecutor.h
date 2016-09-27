@@ -225,6 +225,20 @@ public:
 			perror("readBytes");
 			resp[outBytes] = 0;
 			printf("[[[%s]]]",resp);fflush(stdout);
+
+            //outBytes = readBytes(sck, resp, 10000);
+            rrr = read(sck, resp, 100);
+            int eee = errno;
+            printf("%d %d", eee, strlen(resp));
+            rrr = read(sck, resp, 100);
+            eee = errno;
+            printf("%d %d", eee, strlen(resp));
+            rrr = read(sck, resp, 100);
+            eee = errno;
+            printf("%d %d", eee, strlen(resp));
+
+
+
 			close(sck);
 		}
 	}
