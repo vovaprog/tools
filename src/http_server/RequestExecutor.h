@@ -114,6 +114,19 @@ protected:
         return 0;
     }
 
+	bool isUrlPrefix(char *url, char *prefix)
+	{
+		int i;
+		for(i=0;url[i]!=0 && prefix[i]!=0;++i);
+
+		if((prefix[i] == 0 || prefix[i] == '/') && (url[i] == 0 || url[i] == '/'))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	enum class ParseRequestResult { again, file, uwsgi, invalid };
 
 	ParseRequestResult parseRequest(ExecutorData &data)
@@ -131,10 +144,14 @@ protected:
 
 				if(endOfHeaders != nullptr)
 				{
-					char saveChar;
-
-					saveChar = cdata[size - 1];
-					cdata[size - 1] = 0;
+					if(size < ExecutorData::REQUEST_BUFFER_SIZE)
+					{
+						cdata[size - 1] = 0;
+					}
+					else
+					{
+						return ParseRequestResult::invalid;
+					}
 
 					char urlBuffer[ExecutorData::REQUEST_BUFFER_SIZE];
 
@@ -159,16 +176,21 @@ protected:
 							strcat(data.ctx->fileNameBuffer, urlBuffer);
 						}
 
-						if(strncmp(urlBuffer,"/gallery",strlen("/gallery"))==0)
+						for(int i=0;i<ServerParameters::MAX_APPLICATIONS;++i)
 						{
-							cdata[size - 1] = saveChar;
-							return ParseRequestResult::uwsgi;
+							if(data.ctx->parameters.wsgiApplications[i][0] == 0)
+							{
+								break;
+							}
+
+							if(isUrlPrefix(urlBuffer, data.ctx->parameters.wsgiApplications[i]))
+							{
+								return ParseRequestResult::uwsgi;
+							}
 						}
 
 						return ParseRequestResult::file;
-					}
-
-					cdata[size - 1] = saveChar;
+					}					
 				}
 			}
         }

@@ -17,6 +17,7 @@ set(SOURCE
     Log.h LogStdout.h
     PollData.h
     ExecutorData.h
+    UwsgiExecutor.h
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
     ../cpp/TransferRingBuffer.h)

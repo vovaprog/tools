@@ -6,17 +6,17 @@
 class Executor;
 
 struct ProcessResult {
-	enum class Action { createExecutor, removeExecutor, editPoll, none, shutdown, setFileExecutor, setUwsgiExecutor };
+	enum class Action { createExecutor, removeExecutor, none, shutdown, setFileExecutor, setUwsgiExecutor, editPoll };
 
 	Action action = Action::none;
 
 	PollData *pollData = nullptr;
 
+	int editFd0Events = 0;
+	int editFd1Events = 0;
+
 	int addFd = -1;
 	int addFdEvents = 0;
-
-	int editFd = -1;
-	int editFdEvents = 0;
 
 	void reset()
 	{
@@ -24,8 +24,8 @@ struct ProcessResult {
 		pollData = nullptr;
 		addFd = -1;
 		addFdEvents = 0;
-		editFd = -1;
-		editFdEvents = 0;
+		editFd0Events = 0;
+		editFd1Events = 0;
 	}
 
 	void closeResult()

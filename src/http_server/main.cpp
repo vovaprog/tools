@@ -25,6 +25,9 @@ int main(int argc, char** argv)
 	strcpy(params.rootFolder, "/home/vlads/programs/tools/src/http_server/build/data");
 	params.logLevel = Log::Level::debug;
 
+	strcpy(params.wsgiApplications[0], "/gallery");
+	params.wsgiApplications[1][0] = 0;
+
 	srv.run(params);
 
     return 0;

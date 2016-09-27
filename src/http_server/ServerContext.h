@@ -2,6 +2,7 @@
 #define SERVER_CONTEXT_H
 
 #include <Log.h>
+#include <ServerParameters.h>
 
 struct ServerContext {
 
@@ -11,6 +12,8 @@ struct ServerContext {
 
 	char fileNameBuffer[MAX_FILE_NAME + 1];
 	int rootFolderLength = 0;
+
+	ServerParameters parameters;
 };
 
 #endif

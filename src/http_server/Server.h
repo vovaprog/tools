@@ -8,6 +8,7 @@
 
 #include <RequestExecutor.h>
 #include <FileExecutor.h>
+#include <UwsgiExecutor.h>
 #include <ServerExecutor.h>
 #include <ProcessResult.h>
 #include <ServerParameters.h>
@@ -146,6 +147,8 @@ public:
 		logStdout.init(params.logLevel);
 		ctx.log = &logStdout;
 
+		ctx.parameters = params;
+
 
         signal(SIGPIPE, SIG_IGN);
 
@@ -261,28 +264,6 @@ public:
 		return removeExecutor(execIndex);
 	}
 
-	int handleResult_editPoll(ProcessResult &result)
-	{
-		int ret = 0;
-
-		if(result.addFd > 0)
-		{
-			ret = addPollFd(result.addFd, result.addFdEvents, result.pollData->executorDataIndex);
-		}
-		if(result.editFd > 0)
-		{
-			epoll_event ev;
-			ev.events = result.editFdEvents;
-			ev.data.ptr = result.pollData;
-			if(epoll_ctl(epollFd, EPOLL_CTL_MOD, result.editFd, &ev) == -1)
-			{
-				ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
-				ret = -1;
-			}
-		}
-		return ret;
-	}
-
 	int handleResult_setFileExecutor(ProcessResult &result)
 	{
 		int execIndex = result.pollData->executorDataIndex;
@@ -307,6 +288,57 @@ public:
 		return 0;
 	}
 
+	int handleResult_setUwsgiExecutor(ProcessResult &result)
+	{
+		int execIndex = result.pollData->executorDataIndex;
+		execDatas[execIndex].pExecutor = &uwsgiExecutor;
+
+		if(uwsgiExecutor.up(execDatas[execIndex])!=0)
+		{
+			removeExecutor(execIndex);
+			return -1;
+		}
+
+		if(addPollFd(execDatas[execIndex].fd1, EPOLLOUT, execIndex) != 0)
+		{
+			removeExecutor(execIndex);
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int handleResult_editPoll(ProcessResult &result)
+	{
+		int execIndex = result.pollData->executorDataIndex;
+
+		if(result.editFd0Events != 0)
+		{
+			epoll_event ev;
+			ev.events = result.editFd0Events;
+			ev.data.ptr = &pollDatas[execDatas[execIndex].pollIndexFd0];
+			if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd0, &ev) == -1)
+			{
+				ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
+				removeExecutor(execIndex);
+				return -1;
+			}
+		}
+		if(result.editFd1Events > 0)
+		{
+			epoll_event ev;
+			ev.events = result.editFd1Events;
+			ev.data.ptr = &pollDatas[execDatas[execIndex].pollIndexFd1];
+			if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd1, &ev) == -1)
+			{
+				ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
+				removeExecutor(execIndex);
+				return -1;
+			}
+		}
+		return 0;
+	}
+
 	int handleResult_shutdown(ProcessResult &result)
 	{
 		destroy();
@@ -322,14 +354,17 @@ public:
 		case ProcessResult::Action::removeExecutor:
 			return handleResult_removeExecutor(result);
 
-		case ProcessResult::Action::editPoll:
-			return handleResult_editPoll(result);
-
 		case ProcessResult::Action::shutdown:
 			return handleResult_shutdown(result);
 
 		case ProcessResult::Action::setFileExecutor:
 			return handleResult_setFileExecutor(result);
+
+		case ProcessResult::Action::setUwsgiExecutor:
+			return handleResult_setUwsgiExecutor(result);
+
+		case ProcessResult::Action::editPoll:
+			return handleResult_editPoll(result);
 
         case ProcessResult::Action::none:
             return 0;
@@ -350,7 +385,7 @@ protected:
 	ServerExecutor serverExecutor;
 	RequestExecutor requestExecutor;
 	FileExecutor fileExecutor;
-	//UwsgiExecutor uwsgiExecutor;
+	UwsgiExecutor uwsgiExecutor;
 
 	ServerContext ctx;
 	LogStdout logStdout;

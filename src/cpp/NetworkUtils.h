@@ -8,7 +8,7 @@ int socketConnect(const char *address, int port);
 
 int socketListen(int port);
 
-bool setNonBlock(int fd);
+int setNonBlock(int fd);
 
 #endif
 
