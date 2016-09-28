@@ -16,8 +16,10 @@
 #include <LogStdout.h>
 #include <ExecutorData.h>
 #include <PollData.h>
+#include <ServerBase.h>
 
-class Server
+
+class Server: public ServerBase
 {
 public:
     ~Server()
@@ -73,7 +75,7 @@ public:
         return 0;
     }
 
-    int addPollFd(int fd, uint32_t events, int execIndex)
+	int addPollFd(ExecutorData &data, int fd, int events) override
     {
         if(emptyPollDatas.size() == 0)
         {
@@ -109,6 +111,51 @@ public:
         return 0;
     }
 
+	int editPollFd(ExecutorData &data, int fd, int events) override
+	{
+		int pollIndex = -1;
+		if(fd == data.fd0)
+		{
+			pollIndex = data.pollIndexFd0;
+		}
+		else if(fd == data.fd1)
+		{
+			pollIndex = data.pollIndexFd1;
+		}
+		else
+		{
+			return -1;
+		}
+
+		epoll_event ev;
+		ev.events = events;
+		ev.data.ptr = &pollDatas[pollIndex];
+		if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
+		{
+			perror("epoll_ctl failed");
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int removePollFd(ExecutorData &data, int fd) override
+	{
+		if(epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) != 0)
+		{
+			ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
+			return -1;
+		}
+		if(fd == data.fd0)
+		{
+			emptyPollDatas.push(data.pollIndexFd0);
+		}
+		else if(fd == data.fd1)
+		{
+			emptyPollDatas.push(data.pollIndexFd1);
+		}
+		return 0;
+	}
 
     int openServerSocket(ServerParameters &params)
     {
@@ -139,8 +186,43 @@ public:
     }
 
 
+	ExecutorData* createExecutorData() override
+	{
+		if(emptyExecDatas.size() == 0)
+		{
+			ctx.log->error("too many connections\n");
+			return nullptr;
+		}
+		int execIndex = emptyExecDatas.top();
+		emptyExecDatas.pop();
+		return execDatas[execIndex];
+	}
+
+	void removeExecutorData(ExecutorData *execData)
+	{
+		if(execData->pollIndexFd0 >= 0)
+		{
+			emptyPollDatas.push(execData->pollIndexFd0);
+		}
+		if(execData->pollIndexFd1 >= 0)
+		{
+			emptyPollDatas.push(execData->pollIndexFd1);
+		}
+
+		execData->down();
+
+		emptyExecDatas.push(execData->index);
+
+		return 0;
+	}
+
     int run(ServerParameters &params)
     {
+		serverExecutor.init(this);
+		requestExecutor.init(this);
+		fileExecutor.init(this);
+		uwsgiExecutor.init(this);
+
         strcpy(ctx.fileNameBuffer, params.rootFolder);
         strcat(ctx.fileNameBuffer, "/");
         ctx.rootFolderLength = strlen(ctx.fileNameBuffer);
@@ -177,8 +259,6 @@ public:
         }
 
 
-        ProcessResult result;
-
         while(epollFd > 0)
         {
             printStats();
@@ -203,19 +283,24 @@ public:
                 PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
                 ExecutorData &execData = execDatas[pollData->executorDataIndex];
 
-                result.reset();
-                result.pollData = pollData;
+				ProcessResult result = execData.pExecutor->process(execData, pollData->fd, events[i].events, result);
 
-                execData.pExecutor->process(execData, pollData->fd, events[i].events, result);
-
-                handleResult(result);
+				if(result == ProcessResult::removeExecutor)
+				{
+					removeExecutorData(execData);
+				}
+				else if(result == ProcessResult::shutdown)
+				{
+					destroy();
+					return -1;
+				}
             }
         }
 
         return 0;
     }
 
-    int handleResult_createExecutor(ProcessResult result)
+	/*int handleResult_createExecutor(ProcessResult result)
     {
         if(emptyExecDatas.size() == 0 || emptyPollDatas.size() == 0)
         {
@@ -375,7 +460,7 @@ public:
             ctx.log->error("unknown action\n");
             return -1;
         }
-    }
+	}*/
 
 protected:
 

@@ -23,10 +23,16 @@
 #include <ServerContext.h>
 #include <Executor.h>
 #include <ExecutorData.h>
+#include <ServerBase.h>
 
 class ServerExecutor: public Executor
 {
 public:
+	int init(ServerBase *srv)
+	{
+		this->srv = srv;
+		return 0;
+	}
 
     int up(ExecutorData &data) override
     {
@@ -54,12 +60,29 @@ public:
             return -1;
         }
 
-        result.action = ProcessResult::Action::createExecutor;
-        result.addFd = clientSockFd;
-        result.addFdEvents = EPOLLIN;
+		ExecutorData *data = srv->createExecutorData();
+
+		if(data == nullptr)
+		{
+			return -1;
+		}
+
+		data->fd0 = clientSockFd;
+		data->pExecutor = srv->getExecutor(ExecutorType::request);
+		if(srv->addPollFd(data, data->fd0, EPOLLIN)!=0)
+		{
+			srv->removeExecutorData(data);
+			return -1;
+		}
+
+		data->state = ExecutorData::State::readRequest;
+
+		result.action = ProcessResult::Action::none;
 
         return 0;
     }
+
+	ServerBase *srv;
 };
 
 #endif

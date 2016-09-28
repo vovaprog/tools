@@ -41,6 +41,8 @@ struct ExecutorData
 
     enum class State { readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite };
 
+	int index = -1;
+
     Executor *pExecutor = nullptr;
 
     State state = State::invalid;

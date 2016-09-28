@@ -25,10 +25,16 @@
 #include <ServerContext.h>
 #include <NetworkUtils.h>
 #include <ExecutorData.h>
+#include <ServerBase.h>
 
 class RequestExecutor: public Executor
 {
 public:
+	int init(ServerBase *srv)
+	{
+		this->srv = srv;
+		return 0;
+	}
 
     int up(ExecutorData &data) override
     {
@@ -36,16 +42,15 @@ public:
         return 0;
     }
 
-    int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
+	ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(data.state == ExecutorData::State::readRequest && fd == data.fd0 && (events & EPOLLIN))
         {
-            return process_readRequestReadSocket(data, result);
+			return process_readRequestReadSocket(data);
         }
 
-        data.ctx->log->warning("invalid process call\n");
-        result.action = ProcessResult::Action::none;
-        return 0;
+		data.ctx->log->warning("invalid process call\n");
+		return ProcessResult::ok;
     }
 
 
@@ -199,36 +204,45 @@ protected:
         return ParseRequestResult::again;
     }
 
+	ProcessResult setExecutor(ExecutorData &data, Executor *pExecutor)
+	{
+		data.pExecutor = pExecutor;
+		if(pExecutor->up(data) != 0)
+		{
+			return ProcessResult::removeExecutor;
+		}
+		else
+		{
+			return ProcessResult::ok;
+		}
+	}
 
-    int process_readRequestReadSocket(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_readRequestReadSocket(ExecutorData &data)
     {
         if(readRequest(data) != 0)
         {
-            result.closeResult();
-            return -1;
+			return ProcessResult::removeExecutor;
         }
 
         ParseRequestResult parseResult = parseRequest(data);
 
         if(parseResult == ParseRequestResult::file)
         {
-            result.action = ProcessResult::Action::setFileExecutor;
-            return 0;
+			return setExecutor(data, srv->getExecutor(ExecutorType::file));
         }
         else if(parseResult == ParseRequestResult::uwsgi)
         {
-            result.action = ProcessResult::Action::setUwsgiExecutor;
-            return 0;
+			return setExecutor(data, srv->getExecutor(ExecutorType::uwsgi));
         }
         else if(parseResult == ParseRequestResult::invalid)
         {
-            result.closeResult();
-            return -1;
+			return ProcessResult::removeExecutor;
         }
 
-        result.action = ProcessResult::Action::none;
-        return 0;
+		return ProcessResult::ok;
     }
+
+	ServerBase *srv = nullptr;
 };
 
 #endif

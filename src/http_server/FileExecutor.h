@@ -7,10 +7,17 @@
 #include <ExecutorData.h>
 #include <ProcessResult.h>
 #include <FileUtils.h>
+#include <ServerBase.h>
 
 class FileExecutor: public Executor
 {
 public:
+
+	int init(ServerBase *srv)
+	{
+		this->srv = srv;
+		return 0;
+	}
 
     int up(ExecutorData &data) override
     {
@@ -26,7 +33,7 @@ public:
 
         if(data.fd1 < 0)
         {
-            perror("open failed");
+			data.ctx->log->error("open failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -35,25 +42,29 @@ public:
             return -1;
         }
 
+		if(srv->addPollFd(data, data.fd1, EPOLLIN) != 0)
+		{
+			return -1;
+		}
+
         data.state = ExecutorData::State::sendResponse;
 
         return 0;
     }
 
-    int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
+	ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(data.state == ExecutorData::State::sendResponse && fd == data.fd0 && (events & EPOLLOUT))
         {
-            return process_sendResponseSendData(data, result);
+			return process_sendResponseSendData(data);
         }
         if(data.state == ExecutorData::State::sendFile && fd == data.fd0 && (events & EPOLLOUT))
         {
-            return process_sendFile(data, result);
+			return process_sendFile(data);
         }
 
         data.ctx->log->warning("invalid process call\n");
-        result.action = ProcessResult::Action::none;
-        return 0;
+		return ProcessResult::ok;
     }
 
 
@@ -80,7 +91,7 @@ protected:
         }
     }
 
-    int process_sendResponseSendData(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_sendResponseSendData(ExecutorData &data)
     {
         void *p;
         int size;
@@ -93,8 +104,7 @@ protected:
             {
                 if(errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
                 {
-                    result.closeResult();
-                    return -1;
+					return ProcessResult::removeExecutor;
                 }
             }
             else
@@ -107,31 +117,27 @@ protected:
                 }
             }
 
-            result.action = ProcessResult::Action::none;
-            return 0;
+			return ProcessResult::ok;
         }
         else
         {
-            result.closeResult();
-            return -1;
+			return ProcessResult::removeExecutor;
         }
     }
 
-    int process_sendFile(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_sendFile(ExecutorData &data)
     {
         int bytesWritten = sendfile(data.fd0, data.fd1, &data.filePosition, data.bytesToSend);
         if(bytesWritten <= 0)
         {
             if(errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                result.action = ProcessResult::Action::none;
-                return 0;
+			{
+				return ProcessResult::ok;
             }
             else
             {
                 perror("sendfile failed");
-                result.closeResult();
-                return -1;
+				return ProcessResult::removeExecutor;
             }
 
         }
@@ -140,13 +146,13 @@ protected:
 
         if(data.bytesToSend == 0)
         {
-            result.closeResult();
-            return 0;
+			return ProcessResult::removeExecutor;
         }
 
-        result.action = ProcessResult::Action::none;
-        return 0;
+		return ProcessResult::ok;
     }
+
+	ServerBase *srv = nullptr;
 };
 
 #endif

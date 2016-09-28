@@ -8,10 +8,17 @@
 #include <ProcessResult.h>
 #include <FileUtils.h>
 #include <NetworkUtils.h>
+#include <ServerBase.h>
 
 class UwsgiExecutor: public Executor
 {
 public:
+
+	int init(ServerBase *srv)
+	{
+		this->srv = srv;
+		return 0;
+	}
 
     int up(ExecutorData &data) override
     {
@@ -31,39 +38,48 @@ public:
             return -1;
         }
 
+		if(srv->addPollFd(data, data.fd1, EPOLLOUT) != 0)
+		{
+			return -1;
+		}
+
+		if(srv->removePollFd(data, data.fd0) != 0)
+		{
+			return -1;
+		}
+
         data.state = ExecutorData::State::forwardRequest;
 
         return 0;
     }
 
-    int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
+	ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(data.state == ExecutorData::State::forwardRequest && fd == data.fd1 && (events & EPOLLOUT))
         {
-            return process_forwardRequest(data, result);
+			return process_forwardRequest(data);
         }
         if(data.state == ExecutorData::State::forwardResponse && fd == data.fd1 && (events & EPOLLIN))
         {
-            return process_forwardResponseRead(data, result);
+			return process_forwardResponseRead(data);
         }
         if(data.state == ExecutorData::State::forwardResponse && fd == data.fd0 && (events & EPOLLOUT))
         {
-            return process_forwardResponseWrite(data, result);
+			return process_forwardResponseWrite(data);
         }
         if(data.state == ExecutorData::State::forwardResponseOnlyWrite && fd == data.fd0 && (events & EPOLLOUT))
         {
-            return process_forwardResponseOnlyWrite(data, result);
+			return process_forwardResponseOnlyWrite(data);
         }
 
         data.ctx->log->warning("invalid process call\n");
-        result.action = ProcessResult::Action::none;
-        return 0;
+		return ProcessResult::ok;
     }
 
 
 protected:
 
-    int process_forwardRequest(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_forwardRequest(ExecutorData &data)
     {
         void *p;
         int size;
@@ -82,14 +98,12 @@ protected:
             {
                 if(errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    result.action = ProcessResult::Action::none;
-                    return 0;
+					return ProcessResult::ok;
                 }
                 else
                 {
                     data.ctx->log->error("sendfile failed: %s\n", strerror(errno));
-                    result.closeResult();
-                    return -1;
+					return ProcessResult::removeExecutor;
                 }
             }
 
@@ -101,24 +115,27 @@ protected:
 
                 data.state = ExecutorData::State::forwardResponse;
 
-                result.action = ProcessResult::Action::editPoll;
-                result.editFd0Events = EPOLLOUT;
-                result.editFd1Events = EPOLLIN;
-                return 0;
+				if(srv->addPollFd(data, data.fd0, EPOLLOUT)!=0)
+				{
+					return ProcessResult::removeExecutor;
+				}
+				if(srv->editPollFd(data, data.fd1, EPOLLIN)!=0)
+				{
+					return ProcessResult::removeExecutor;
+				}
+				return ProcessResult::ok;
             }
 
-            result.action = ProcessResult::Action::none;
-            return 0;
+			return ProcessResult::ok;
         }
         else
         {
             data.ctx->log->error("buffer.startRead failed\n");
-            result.closeResult();
-            return -1;
+			return ProcessResult::removeExecutor;
         }
     }
 
-    int process_forwardResponseRead(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_forwardResponseRead(ExecutorData &data)
     {
         void *p;
         int size;
@@ -134,37 +151,33 @@ protected:
                     perror("read failed");
                     close(data.fd1);
                     data.fd1 = -1;
-                    data.state = ExecutorData::State::forwardResponseOnlyWrite;
-                    result.action = ProcessResult::Action::none;
-                    return 0;
+					data.state = ExecutorData::State::forwardResponseOnlyWrite;
+					return ProcessResult::ok;
                 }
                 else if(errno == EAGAIN || errno == EWOULDBLOCK)
                 {
                     result.action = ProcessResult::Action::none;
-                    return 0;
+					return ProcessResult::ok;
                 }
                 else
                 {
                     data.ctx->log->error("read failed: %s\n", strerror(errno));
-                    result.closeResult();
-                    return -1;
+					return ProcessResult::removeExecutor;
                 }
             }
             else
             {
                 data.buffer.endWrite(bytesRead);
-                result.action = ProcessResult::Action::none;
-                return 0;
+				return ProcessResult::ok;
             }
         }
         else
         {
-            result.action = ProcessResult::Action::none;
-            return 0;
+			return ProcessResult::ok;
         }
     }
 
-    int process_forwardResponseWrite(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_forwardResponseWrite(ExecutorData &data)
     {
         void *p;
         int size;
@@ -178,24 +191,22 @@ protected:
                 if(errno == EAGAIN || errno == EWOULDBLOCK)
                 {
                     result.action = ProcessResult::Action::none;
-                    return 0;
+					return ProcessResult::ok;
                 }
                 else
                 {
                     data.ctx->log->error("write failed: %s\n", strerror(errno));
-                    result.closeResult();
-                    return -1;
+					return ProcessResult::removeExecutor;
                 }
             }
 
             data.buffer.endRead(bytesWritten);
         }
 
-        result.action = ProcessResult::Action::none;
-        return 0;
+		return ProcessResult::ok;
     }
 
-    int process_forwardResponseOnlyWrite(ExecutorData &data, ProcessResult &result)
+	ProcessResult process_forwardResponseOnlyWrite(ExecutorData &data)
     {
         void *p;
         int size;
@@ -208,14 +219,12 @@ protected:
             {
                 if(errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    result.action = ProcessResult::Action::none;
-                    return 0;
+					return ProcessResult::ok;
                 }
                 else
                 {
                     data.ctx->log->error("write failed: %s\n", strerror(errno));
-                    result.closeResult();
-                    return -1;
+					return ProcessResult::removeExecutor;
                 }
             }
 
@@ -223,21 +232,20 @@ protected:
 
             if(bytesWritten == size && !data.buffer.readAvailable())
             {
-                result.action = ProcessResult::Action::removeExecutor;
-                return 0;
+				return ProcessResult::removeExecutor;
             }
             else
             {
-                result.action = ProcessResult::Action::none;
-                return 0;
+				return ProcessResult::ok;
             }
         }
         else
         {
-            result.action = ProcessResult::Action::removeExecutor;
-            return 0;
+			return ProcessResult::removeExecutor;
         }
     }
+
+	ServerBase *srv = nullptr;
 };
 
 #endif

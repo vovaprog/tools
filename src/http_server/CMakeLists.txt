@@ -18,6 +18,7 @@ set(SOURCE
     PollData.h
     ExecutorData.h
     UwsgiExecutor.h
+    ServerBase.h
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
     ../cpp/TransferRingBuffer.h)

@@ -3,7 +3,7 @@
 
 #include <PollData.h>
 
-class Executor;
+/*class Executor;
 
 struct ProcessResult
 {
@@ -33,7 +33,10 @@ struct ProcessResult
     {
         action = ProcessResult::Action::removeExecutor;
     }
-};
+};*/
+
+enum class ProcessResult { ok, removeExecutor, shutdown };
+
 
 #endif
 
