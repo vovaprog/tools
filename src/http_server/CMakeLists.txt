@@ -19,6 +19,7 @@ set(SOURCE
     ExecutorData.h
     UwsgiExecutor.h
     ServerBase.h
+    percent_decode.h percent_decode.c
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
     ../cpp/TransferRingBuffer.h)

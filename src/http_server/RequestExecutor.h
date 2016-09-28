@@ -26,6 +26,7 @@
 #include <NetworkUtils.h>
 #include <ExecutorData.h>
 #include <ServerBase.h>
+#include <percent_decode.h>
 
 class RequestExecutor: public Executor
 {
@@ -104,7 +105,7 @@ protected:
                     (urlBuffer[i] >= 'A' && urlBuffer[i] <= 'Z') ||
                     (urlBuffer[i] >= '0' && urlBuffer[i] <= '9') ||
                     urlBuffer[i] == '/' || urlBuffer[i] == '.' || urlBuffer[i] == '_' ||
-                    urlBuffer[i] == '=' || urlBuffer[i] == '?' || urlBuffer[i] == '-'))
+			        urlBuffer[i] == '=' || urlBuffer[i] == '?' || urlBuffer[i] == '-' || urlBuffer[i] == ' '))
             {
                 return -1;
             }
@@ -162,42 +163,53 @@ protected:
 
                     char urlBuffer[ExecutorData::REQUEST_BUFFER_SIZE];
 
-                    if(sscanf(cdata, "GET %s HTTP", urlBuffer) == 1)
-                    {
-                        if(checkUrl(data, urlBuffer) != 0)
-                        {
-                            data.ctx->log->info("invalid url\n");
-                            return ParseRequestResult::invalid;
-                        }
+					if(sscanf(cdata, "GET %s HTTP", urlBuffer) != 1)
+					{
+						if(sscanf(cdata, "POST %s HTTP", urlBuffer) != 1)
+						{
+							data.ctx->log->info("invalid url\n");
+							return ParseRequestResult::invalid;
+						}
+					}
 
-                        data.ctx->log->debug("url: %s\n", urlBuffer);
+					if(percent_decode_in_place(urlBuffer, 1) == nullptr)
+					{
+						return ParseRequestResult::invalid;
+					}
 
-                        data.ctx->fileNameBuffer[data.ctx->rootFolderLength] = 0;
+					if(checkUrl(data, urlBuffer) != 0)
+					{
+						data.ctx->log->info("invalid url\n");
+						return ParseRequestResult::invalid;
+					}
 
-                        if(strcmp(urlBuffer, "/") == 0)
-                        {
-                            strcat(data.ctx->fileNameBuffer, "index.html");
-                        }
-                        else
-                        {
-                            strcat(data.ctx->fileNameBuffer, urlBuffer);
-                        }
+					data.ctx->log->debug("url: %s\n", urlBuffer);
 
-                        for(int i = 0; i < ServerParameters::MAX_APPLICATIONS; ++i)
-                        {
-                            if(data.ctx->parameters.wsgiApplications[i][0] == 0)
-                            {
-                                break;
-                            }
+					data.ctx->fileNameBuffer[data.ctx->rootFolderLength] = 0;
 
-                            if(isUrlPrefix(urlBuffer, data.ctx->parameters.wsgiApplications[i]))
-                            {
-                                return ParseRequestResult::uwsgi;
-                            }
-                        }
+					if(strcmp(urlBuffer, "/") == 0)
+					{
+						strcat(data.ctx->fileNameBuffer, "index.html");
+					}
+					else
+					{
+						strcat(data.ctx->fileNameBuffer, urlBuffer);
+					}
 
-                        return ParseRequestResult::file;
-                    }
+					for(int i = 0; i < ServerParameters::MAX_APPLICATIONS; ++i)
+					{
+						if(data.ctx->parameters.wsgiApplications[i][0] == 0)
+						{
+							break;
+						}
+
+						if(isUrlPrefix(urlBuffer, data.ctx->parameters.wsgiApplications[i]))
+						{
+							return ParseRequestResult::uwsgi;
+						}
+					}
+
+					return ParseRequestResult::file;
                 }
             }
         }
