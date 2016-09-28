@@ -42,7 +42,7 @@ public:
             return -1;
         }
 
-		if(srv->addPollFd(data, data.fd1, EPOLLIN) != 0)
+		if(srv->editPollFd(data, data.fd0, EPOLLOUT) != 0)
 		{
 			return -1;
 		}

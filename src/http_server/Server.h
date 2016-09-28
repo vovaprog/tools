@@ -71,6 +71,7 @@ public:
         for(int i = 0; i < MAX_CLIENTS; ++i)
         {
             execDatas[i].ctx = &ctx;
+			execDatas[i].index = i;
         }
         return 0;
     }
@@ -82,6 +83,12 @@ public:
             ctx.log->error("too many connections\n");
             return -1;
         }
+
+		if(fd != data.fd0 && fd != data.fd1)
+		{
+			ctx.log->error("invalid argument\n");
+			return -1;
+		}
 
         int pollIndex = emptyPollDatas.top();
 
@@ -95,15 +102,15 @@ public:
         }
 
         pollDatas[pollIndex].fd = fd;
-        pollDatas[pollIndex].executorDataIndex = execIndex;
+		pollDatas[pollIndex].executorDataIndex = data.index;
 
-        if(fd == execDatas[execIndex].fd0)
+		if(fd == data.fd0)
         {
-            execDatas[execIndex].pollIndexFd0 = pollIndex;
+			data.pollIndexFd0 = pollIndex;
         }
-        else
+		else if(fd == data.fd1)
         {
-            execDatas[execIndex].pollIndexFd1 = pollIndex;
+			data.pollIndexFd1 = pollIndex;
         }
 
         emptyPollDatas.pop();
@@ -159,32 +166,34 @@ public:
 
     int openServerSocket(ServerParameters &params)
     {
-        int serverSockFd = socketListen(params.port);
-        if(serverSockFd < 0)
-        {
-            return -1;
-        }
+		ExecutorData *pExecData = createExecutorData();
 
-        int execIndex = emptyExecDatas.top();
-        execDatas[execIndex].fd0 = serverSockFd;
-        execDatas[execIndex].pExecutor = &serverExecutor;
+		pExecData->pExecutor = &serverExecutor;
 
-        int pollIndex = emptyPollDatas.top();
-        pollDatas[pollIndex].fd = serverSockFd;
-        pollDatas[pollIndex].executorDataIndex = execIndex;
-
-        if(addPollFd(execDatas[execIndex].fd0, EPOLLIN, execIndex) != 0)
-        {
-            close(serverSockFd);
-            return -1;
-        }
-
-        emptyExecDatas.pop();
-        emptyPollDatas.pop();
+		if(pExecData->pExecutor->up(*pExecData) != 0)
+		{
+			removeExecutorData(pExecData);
+			return -1;
+		}
 
         return 0;
     }
 
+	Executor* getExecutor(ExecutorType execType) override
+	{
+		switch(execType){
+		case ExecutorType::request:
+			return &requestExecutor;
+		case ExecutorType::file:
+			return &fileExecutor;
+		case ExecutorType::uwsgi:
+			return &uwsgiExecutor;
+		case ExecutorType::server:
+			return &serverExecutor;
+		default:
+			return nullptr;
+		}
+	}
 
 	ExecutorData* createExecutorData() override
 	{
@@ -193,9 +202,11 @@ public:
 			ctx.log->error("too many connections\n");
 			return nullptr;
 		}
+
 		int execIndex = emptyExecDatas.top();
 		emptyExecDatas.pop();
-		return execDatas[execIndex];
+
+		return &execDatas[execIndex];
 	}
 
 	void removeExecutorData(ExecutorData *execData)
@@ -212,8 +223,6 @@ public:
 		execData->down();
 
 		emptyExecDatas.push(execData->index);
-
-		return 0;
 	}
 
     int run(ServerParameters &params)
@@ -283,11 +292,11 @@ public:
                 PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
                 ExecutorData &execData = execDatas[pollData->executorDataIndex];
 
-				ProcessResult result = execData.pExecutor->process(execData, pollData->fd, events[i].events, result);
+				ProcessResult result = execData.pExecutor->process(execData, pollData->fd, events[i].events);
 
 				if(result == ProcessResult::removeExecutor)
 				{
-					removeExecutorData(execData);
+					removeExecutorData(&execData);
 				}
 				else if(result == ProcessResult::shutdown)
 				{
@@ -299,168 +308,6 @@ public:
 
         return 0;
     }
-
-	/*int handleResult_createExecutor(ProcessResult result)
-    {
-        if(emptyExecDatas.size() == 0 || emptyPollDatas.size() == 0)
-        {
-            ctx.log->error("too many connections!\n");
-            return -1;
-        }
-        int execIndex = emptyExecDatas.top();
-
-        execDatas[execIndex].pExecutor = &requestExecutor;
-        execDatas[execIndex].state = ExecutorData::State::readRequest;
-        execDatas[execIndex].fd0 = result.addFd;
-
-        requestExecutor.up(execDatas[execIndex]);
-
-        if(addPollFd(result.addFd, result.addFdEvents, execIndex) != 0)
-        {
-            return -1;
-        }
-
-        emptyExecDatas.pop();
-
-        return 0;
-    }
-
-    int removeExecutor(int execIndex)
-    {
-        if(execDatas[execIndex].pollIndexFd0 >= 0)
-        {
-            emptyPollDatas.push(execDatas[execIndex].pollIndexFd0);
-        }
-        if(execDatas[execIndex].pollIndexFd1 >= 0)
-        {
-            emptyPollDatas.push(execDatas[execIndex].pollIndexFd1);
-        }
-
-        execDatas[execIndex].down();
-
-        emptyExecDatas.push(execIndex);
-
-        return 0;
-    }
-
-    int handleResult_removeExecutor(ProcessResult &result)
-    {
-        int execIndex = result.pollData->executorDataIndex;
-
-        return removeExecutor(execIndex);
-    }
-
-    int handleResult_setFileExecutor(ProcessResult &result)
-    {
-        int execIndex = result.pollData->executorDataIndex;
-        execDatas[execIndex].pExecutor = &fileExecutor;
-
-        if(fileExecutor.up(execDatas[execIndex]) != 0)
-        {
-            removeExecutor(execIndex);
-            return -1;
-        }
-
-        epoll_event ev;
-        ev.events = EPOLLOUT;
-        ev.data.ptr = result.pollData;
-        if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd0, &ev) == -1)
-        {
-            ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
-            removeExecutor(execIndex);
-            return -1;
-        }
-
-        return 0;
-    }
-
-    int handleResult_setUwsgiExecutor(ProcessResult &result)
-    {
-        int execIndex = result.pollData->executorDataIndex;
-        execDatas[execIndex].pExecutor = &uwsgiExecutor;
-
-        if(uwsgiExecutor.up(execDatas[execIndex]) != 0)
-        {
-            removeExecutor(execIndex);
-            return -1;
-        }
-
-        if(addPollFd(execDatas[execIndex].fd1, EPOLLOUT, execIndex) != 0)
-        {
-            removeExecutor(execIndex);
-            return -1;
-        }
-
-        return 0;
-    }
-
-    int handleResult_editPoll(ProcessResult &result)
-    {
-        int execIndex = result.pollData->executorDataIndex;
-
-        if(result.editFd0Events != 0)
-        {
-            epoll_event ev;
-            ev.events = result.editFd0Events;
-            ev.data.ptr = &pollDatas[execDatas[execIndex].pollIndexFd0];
-            if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd0, &ev) == -1)
-            {
-                ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
-                removeExecutor(execIndex);
-                return -1;
-            }
-        }
-        if(result.editFd1Events > 0)
-        {
-            epoll_event ev;
-            ev.events = result.editFd1Events;
-            ev.data.ptr = &pollDatas[execDatas[execIndex].pollIndexFd1];
-            if(epoll_ctl(epollFd, EPOLL_CTL_MOD, execDatas[execIndex].fd1, &ev) == -1)
-            {
-                ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
-                removeExecutor(execIndex);
-                return -1;
-            }
-        }
-        return 0;
-    }
-
-    int handleResult_shutdown(ProcessResult &result)
-    {
-        destroy();
-        return -1;
-    }
-
-    int handleResult(ProcessResult &result)
-    {
-        switch(result.action)
-        {
-        case ProcessResult::Action::createExecutor:
-            return handleResult_createExecutor(result);
-
-        case ProcessResult::Action::removeExecutor:
-            return handleResult_removeExecutor(result);
-
-        case ProcessResult::Action::shutdown:
-            return handleResult_shutdown(result);
-
-        case ProcessResult::Action::setFileExecutor:
-            return handleResult_setFileExecutor(result);
-
-        case ProcessResult::Action::setUwsgiExecutor:
-            return handleResult_setUwsgiExecutor(result);
-
-        case ProcessResult::Action::editPoll:
-            return handleResult_editPoll(result);
-
-        case ProcessResult::Action::none:
-            return 0;
-
-        default:
-            ctx.log->error("unknown action\n");
-            return -1;
-        }
-	}*/
 
 protected:
 

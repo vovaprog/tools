@@ -155,8 +155,7 @@ protected:
 					return ProcessResult::ok;
                 }
                 else if(errno == EAGAIN || errno == EWOULDBLOCK)
-                {
-                    result.action = ProcessResult::Action::none;
+				{
 					return ProcessResult::ok;
                 }
                 else
@@ -189,8 +188,7 @@ protected:
             if(bytesWritten <= 0)
             {
                 if(errno == EAGAIN || errno == EWOULDBLOCK)
-                {
-                    result.action = ProcessResult::Action::none;
+				{
 					return ProcessResult::ok;
                 }
                 else

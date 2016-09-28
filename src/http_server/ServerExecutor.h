@@ -36,16 +36,26 @@ public:
 
     int up(ExecutorData &data) override
     {
+		data.fd0 = socketListen(data.ctx->parameters.port);
+		if(data.fd0 < 0)
+		{
+			return -1;
+		}
+
+		if(srv->addPollFd(data, data.fd0, EPOLLIN) != 0)
+		{
+			return -1;
+		}
+
         return 0;
     }
 
-    int process(ExecutorData &data, int fd, int events, ProcessResult &result) override
+	ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(fd != data.fd0)
         {
-            data.ctx->log->error("invalid file\n");
-            result.action = ProcessResult::Action::none;
-            return -1;
+			data.ctx->log->error("invalid file\n");
+			return ProcessResult::ok;
         }
 
         struct sockaddr_in address;
@@ -56,33 +66,37 @@ public:
         if(clientSockFd == -1)
         {
             data.ctx->log->error("accept failed: %s", strerror(errno));
-            result.action = ProcessResult::Action::shutdown;
-            return -1;
+			return ProcessResult::shutdown;
         }
 
-		ExecutorData *data = srv->createExecutorData();
+		ExecutorData *clientData = srv->createExecutorData();
 
-		if(data == nullptr)
+		if(clientData == nullptr)
 		{
-			return -1;
+			close(clientSockFd);
+			return ProcessResult::ok;
 		}
 
-		data->fd0 = clientSockFd;
-		data->pExecutor = srv->getExecutor(ExecutorType::request);
-		if(srv->addPollFd(data, data->fd0, EPOLLIN)!=0)
+		clientData->fd0 = clientSockFd;
+		clientData->pExecutor = srv->getExecutor(ExecutorType::request);
+		if(srv->addPollFd(*clientData, clientData->fd0, EPOLLIN)!=0)
 		{
-			srv->removeExecutorData(data);
-			return -1;
+			srv->removeExecutorData(clientData);
+			return ProcessResult::ok;
 		}
 
-		data->state = ExecutorData::State::readRequest;
+		clientData->state = ExecutorData::State::readRequest;
 
-		result.action = ProcessResult::Action::none;
+		if(clientData->pExecutor->up(*clientData) != 0)
+		{
+			srv->removeExecutorData(clientData);
+			return ProcessResult::ok;
+		}
 
-        return 0;
+		return ProcessResult::ok;
     }
 
-	ServerBase *srv;
+	ServerBase *srv = nullptr;
 };
 
 #endif
