@@ -31,7 +31,7 @@
 class RequestExecutor: public Executor
 {
 public:
-	int init(ServerBase *srv)
+	int init(PollLoopBase *srv)
 	{
 		this->srv = srv;
 		return 0;
@@ -254,7 +254,7 @@ protected:
 		return ProcessResult::ok;
     }
 
-	ServerBase *srv = nullptr;
+	PollLoopBase *srv = nullptr;
 };
 
 #endif

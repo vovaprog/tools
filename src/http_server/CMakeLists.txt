@@ -18,7 +18,7 @@ set(SOURCE
     PollData.h
     ExecutorData.h
     UwsgiExecutor.h
-    ServerBase.h
+    PollLoopBase.h PollLoop.h
     percent_decode.h percent_decode.c
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp

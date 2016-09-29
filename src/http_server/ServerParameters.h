@@ -12,6 +12,10 @@ struct ServerParameters
     Log::Level logLevel = Log::Level::info;
     char rootFolder[300];
     char wsgiApplications[MAX_APPLICATIONS + 1][20];
+	int threadCount = 1;
+
+	std::vector<int> httpPorts;
+	std::vector<int> httpsPorts;
 };
 
 #endif

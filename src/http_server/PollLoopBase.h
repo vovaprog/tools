@@ -6,7 +6,7 @@
 
 enum class ExecutorType { server, request, file, uwsgi };
 
-class ServerBase {
+class PollLoopBase {
 public:
 	virtual ExecutorData* createExecutorData() = 0;
 	virtual void removeExecutorData(ExecutorData* data) = 0;

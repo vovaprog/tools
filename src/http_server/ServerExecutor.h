@@ -28,7 +28,7 @@
 class ServerExecutor: public Executor
 {
 public:
-	int init(ServerBase *srv)
+	int init(PollLoopBase *srv)
 	{
 		this->srv = srv;
 		return 0;
@@ -69,7 +69,9 @@ public:
 			return ProcessResult::shutdown;
         }
 
-		ExecutorData *clientData = srv->createExecutorData();
+		srv->createRequestExecutor(clientSockFd);
+
+		/*ExecutorData *clientData = srv->createExecutorData();
 
 		if(clientData == nullptr)
 		{
@@ -91,12 +93,12 @@ public:
 		{
 			srv->removeExecutorData(clientData);
 			return ProcessResult::ok;
-		}
+		}*/
 
 		return ProcessResult::ok;
     }
 
-	ServerBase *srv = nullptr;
+	PollLoopBase *srv = nullptr;
 };
 
 #endif

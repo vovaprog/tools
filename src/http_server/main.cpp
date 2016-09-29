@@ -3,7 +3,7 @@
 #include <Server.h>
 #include <Log.h>
 
-Server srv;
+PollLoop srv;
 
 static void sig_int_handler(int i)
 {
