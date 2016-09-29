@@ -7,33 +7,34 @@
 #include <ExecutorData.h>
 #include <ProcessResult.h>
 #include <FileUtils.h>
-#include <ServerBase.h>
+#include <PollLoopBase.h>
 
 class FileExecutor: public Executor
 {
 public:
 
-	int init(PollLoopBase *srv)
+	int init(PollLoopBase *loop)
 	{
-		this->srv = srv;
+		this->loop = loop;
+		this->log = loop->log;
 		return 0;
 	}
 
     int up(ExecutorData &data) override
     {
-        data.bytesToSend = fileSize(data.ctx->fileNameBuffer);
+		data.bytesToSend = fileSize(loop->fileNameBuffer);
 
         if(data.bytesToSend < 0)
         {
-            data.ctx->log->info("fileSize failed: %s\n", strerror(errno));
+			log->info("fileSize failed: %s\n", strerror(errno));
             return -1;
         }
 
-        data.fd1 = open(data.ctx->fileNameBuffer, O_NONBLOCK | O_RDONLY);
+		data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
 
         if(data.fd1 < 0)
         {
-			data.ctx->log->error("open failed: %s\n", strerror(errno));
+			log->error("open failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -42,7 +43,7 @@ public:
             return -1;
         }
 
-		if(srv->editPollFd(data, data.fd0, EPOLLOUT) != 0)
+		if(loop->editPollFd(data, data.fd0, EPOLLOUT) != 0)
 		{
 			return -1;
 		}
@@ -63,7 +64,7 @@ public:
 			return process_sendFile(data);
         }
 
-        data.ctx->log->warning("invalid process call\n");
+		log->warning("invalid process call\n");
 		return ProcessResult::ok;
     }
 
@@ -86,7 +87,7 @@ protected:
         }
         else
         {
-            data.ctx->log->warning("buffer.startWrite failed\n");
+			log->warning("buffer.startWrite failed\n");
             return -1;
         }
     }
@@ -152,7 +153,8 @@ protected:
 		return ProcessResult::ok;
     }
 
-	PollLoopBase *srv = nullptr;
+	PollLoopBase *loop = nullptr;
+	Log *log = nullptr;
 };
 
 #endif

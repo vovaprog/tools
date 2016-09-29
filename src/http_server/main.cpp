@@ -3,7 +3,7 @@
 #include <Server.h>
 #include <Log.h>
 
-PollLoop srv;
+Server srv;
 
 static void sig_int_handler(int i)
 {
@@ -28,6 +28,9 @@ int main(int argc, char** argv)
     strcpy(params.wsgiApplications[0], "/gallery");
     strcpy(params.wsgiApplications[1], "/calendar");
     params.wsgiApplications[2][0] = 0;
+
+	params.threadCount = 3;
+	params.httpPorts.push_back(7000);
 
     srv.run(params);
 

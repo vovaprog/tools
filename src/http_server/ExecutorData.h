@@ -4,7 +4,6 @@
 #include <TransferRingBuffer.h>
 
 class Executor;
-class ServerContext;
 
 struct ExecutorData
 {
@@ -55,9 +54,9 @@ struct ExecutorData
     long long int bytesToSend = 0;
     off_t filePosition = 0;
 
-    TransferRingBuffer buffer;
+	TransferRingBuffer buffer;
 
-    ServerContext *ctx = nullptr;
+	int port = 0;
 };
 
 #endif

@@ -8,15 +8,16 @@
 #include <ProcessResult.h>
 #include <FileUtils.h>
 #include <NetworkUtils.h>
-#include <ServerBase.h>
+#include <PollLoopBase.h>
 
 class UwsgiExecutor: public Executor
 {
 public:
 
-	int init(PollLoopBase *srv)
+	int init(PollLoopBase *loop)
 	{
-		this->srv = srv;
+		this->loop = loop;
+		this->log = loop->log;
 		return 0;
 	}
 
@@ -26,24 +27,24 @@ public:
 
         if(data.fd1 < 0)
         {
-            data.ctx->log->error("socketConnect failed\n");
+			log->error("socketConnect failed\n");
             return -1;
         }
 
         if(setNonBlock(data.fd1) != 0)
         {
-            data.ctx->log->error("setNonBlock failed: %s\n", strerror(errno));
+			log->error("setNonBlock failed: %s\n", strerror(errno));
             close(data.fd1);
             data.fd1 = -1;
             return -1;
         }
 
-		if(srv->addPollFd(data, data.fd1, EPOLLOUT) != 0)
+		if(loop->addPollFd(data, data.fd1, EPOLLOUT) != 0)
 		{
 			return -1;
 		}
 
-		if(srv->removePollFd(data, data.fd0) != 0)
+		if(loop->removePollFd(data, data.fd0) != 0)
 		{
 			return -1;
 		}
@@ -72,7 +73,7 @@ public:
 			return process_forwardResponseOnlyWrite(data);
         }
 
-        data.ctx->log->warning("invalid process call\n");
+		loop->log->warning("invalid process call\n");
 		return ProcessResult::ok;
     }
 
@@ -102,7 +103,7 @@ protected:
                 }
                 else
                 {
-                    data.ctx->log->error("sendfile failed: %s\n", strerror(errno));
+					log->error("sendfile failed: %s\n", strerror(errno));
 					return ProcessResult::removeExecutor;
                 }
             }
@@ -115,11 +116,11 @@ protected:
 
                 data.state = ExecutorData::State::forwardResponse;
 
-				if(srv->addPollFd(data, data.fd0, EPOLLOUT)!=0)
+				if(loop->addPollFd(data, data.fd0, EPOLLOUT)!=0)
 				{
 					return ProcessResult::removeExecutor;
 				}
-				if(srv->editPollFd(data, data.fd1, EPOLLIN)!=0)
+				if(loop->editPollFd(data, data.fd1, EPOLLIN)!=0)
 				{
 					return ProcessResult::removeExecutor;
 				}
@@ -130,7 +131,7 @@ protected:
         }
         else
         {
-            data.ctx->log->error("buffer.startRead failed\n");
+			loop->log->error("buffer.startRead failed\n");
 			return ProcessResult::removeExecutor;
         }
     }
@@ -160,7 +161,7 @@ protected:
                 }
                 else
                 {
-                    data.ctx->log->error("read failed: %s\n", strerror(errno));
+					log->error("read failed: %s\n", strerror(errno));
 					return ProcessResult::removeExecutor;
                 }
             }
@@ -193,7 +194,7 @@ protected:
                 }
                 else
                 {
-                    data.ctx->log->error("write failed: %s\n", strerror(errno));
+					log->error("write failed: %s\n", strerror(errno));
 					return ProcessResult::removeExecutor;
                 }
             }
@@ -221,7 +222,7 @@ protected:
                 }
                 else
                 {
-                    data.ctx->log->error("write failed: %s\n", strerror(errno));
+					log->error("write failed: %s\n", strerror(errno));
 					return ProcessResult::removeExecutor;
                 }
             }
@@ -243,7 +244,8 @@ protected:
         }
     }
 
-	PollLoopBase *srv = nullptr;
+	PollLoopBase *loop = nullptr;
+	Log *log = nullptr;
 };
 
 #endif

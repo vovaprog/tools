@@ -22,24 +22,32 @@
 #include <TransferRingBuffer.h>
 #include <FileUtils.h>
 #include <ServerParameters.h>
-#include <ServerContext.h>
 #include <NetworkUtils.h>
 #include <ExecutorData.h>
-#include <ServerBase.h>
+#include <PollLoopBase.h>
 #include <percent_decode.h>
 
 class RequestExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *srv)
+	int init(PollLoopBase *loop)
 	{
-		this->srv = srv;
+		this->loop = loop;
+		this->log = loop->log;
 		return 0;
 	}
 
     int up(ExecutorData &data) override
     {
         data.buffer.init(ExecutorData::REQUEST_BUFFER_SIZE);
+
+		if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)
+		{
+			return -1;
+		}
+
+		data.state = ExecutorData::State::readRequest;
+
         return 0;
     }
 
@@ -50,7 +58,7 @@ public:
 			return process_readRequestReadSocket(data);
         }
 
-		data.ctx->log->warning("invalid process call\n");
+		log->warning("invalid process call\n");
 		return ProcessResult::ok;
     }
 
@@ -72,11 +80,11 @@ protected:
                 {
                     if(rd == 0 && errno == 0)
                     {
-                        data.ctx->log->debug("client disconnected\n");
+						log->debug("client disconnected\n");
                     }
                     else
                     {
-                        data.ctx->log->info("read failed: %s\n", strerror(errno));
+						log->info("read failed: %s\n", strerror(errno));
                     }
                     return -1;
                 }
@@ -88,7 +96,7 @@ protected:
         }
         else
         {
-            data.ctx->log->warning("requestBuffer.startWrite failed");
+			log->warning("requestBuffer.startWrite failed");
             return -1;
         }
 
@@ -115,7 +123,7 @@ protected:
             }
             prevChar = urlBuffer[i];
         }
-        if(data.ctx->rootFolderLength + i > ServerContext::MAX_FILE_NAME)
+		if(loop->rootFolderLength + i > PollLoopBase::MAX_FILE_NAME)
         {
             return -1;
         }
@@ -167,7 +175,7 @@ protected:
 					{
 						if(sscanf(cdata, "POST %s HTTP", urlBuffer) != 1)
 						{
-							data.ctx->log->info("invalid url\n");
+							log->info("invalid url\n");
 							return ParseRequestResult::invalid;
 						}
 					}
@@ -179,31 +187,31 @@ protected:
 
 					if(checkUrl(data, urlBuffer) != 0)
 					{
-						data.ctx->log->info("invalid url\n");
+						log->info("invalid url\n");
 						return ParseRequestResult::invalid;
 					}
 
-					data.ctx->log->debug("url: %s\n", urlBuffer);
+					log->debug("url: %s\n", urlBuffer);
 
-					data.ctx->fileNameBuffer[data.ctx->rootFolderLength] = 0;
+					loop->fileNameBuffer[loop->rootFolderLength] = 0;
 
 					if(strcmp(urlBuffer, "/") == 0)
 					{
-						strcat(data.ctx->fileNameBuffer, "index.html");
+						strcat(loop->fileNameBuffer, "index.html");
 					}
 					else
 					{
-						strcat(data.ctx->fileNameBuffer, urlBuffer);
+						strcat(loop->fileNameBuffer, urlBuffer);
 					}
 
 					for(int i = 0; i < ServerParameters::MAX_APPLICATIONS; ++i)
 					{
-						if(data.ctx->parameters.wsgiApplications[i][0] == 0)
+						if(loop->parameters->wsgiApplications[i][0] == 0)
 						{
 							break;
 						}
 
-						if(isUrlPrefix(urlBuffer, data.ctx->parameters.wsgiApplications[i]))
+						if(isUrlPrefix(urlBuffer, loop->parameters->wsgiApplications[i]))
 						{
 							return ParseRequestResult::uwsgi;
 						}
@@ -240,11 +248,11 @@ protected:
 
         if(parseResult == ParseRequestResult::file)
         {
-			return setExecutor(data, srv->getExecutor(ExecutorType::file));
+			return setExecutor(data, loop->getExecutor(ExecutorType::file));
         }
         else if(parseResult == ParseRequestResult::uwsgi)
         {
-			return setExecutor(data, srv->getExecutor(ExecutorType::uwsgi));
+			return setExecutor(data, loop->getExecutor(ExecutorType::uwsgi));
         }
         else if(parseResult == ParseRequestResult::invalid)
         {
@@ -254,7 +262,8 @@ protected:
 		return ProcessResult::ok;
     }
 
-	PollLoopBase *srv = nullptr;
+	PollLoopBase *loop = nullptr;
+	Log *log = nullptr;
 };
 
 #endif

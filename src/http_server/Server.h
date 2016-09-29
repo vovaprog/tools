@@ -4,57 +4,66 @@
 #include <thread>
 #include <ServerParameters.h>
 #include <PollLoop.h>
+#include <ServerBase.h>
+#include <ExecutorType.h>
+#include <climits>
 
-class Server{
+class Server: public ServerBase{
+public:
 
-
-	int run(ServerParameters &params)
+	int run(ServerParameters &parameters)
 	{
-		loops = new PollLoop[params.threadCount];
+		this->parameters = parameters;
 
-		for(int i=0;i<params.threadCount;++i)
+		loops = new PollLoop[parameters.threadCount];
+
+		for(int i=0;i<parameters.threadCount;++i)
 		{
-			loops[i].init(this, params);
-		}
-
-		//=================================================
-
-		int i = 0;
-		for(int port : params.httpPorts)
-		{
-			loops[i % params.threadCount].listenHttp(port);
-			++i;
-		}
-		for(int port : params.httpsPorts)
-		{
-			loops[i % params.threadCount].listenHttps(port);
-			++i;
-		}
-
-		//=================================================
-
-		if(params.threadCount > 1)
-		{
-			threads = new std::thread[params.threadCount - 1];
-
-			for(int i=0;i<params.threadCount - 1;++i)
+			if(loops[i].init(this, &parameters) != 0)
 			{
-				threads[i] = std::thread(PollLoop::run, &loops[i], &params);
+				destroy();
+				return -1;
 			}
 		}
 
 		//=================================================
 
-		loops[params.threadCount - 1].run(params);
+		int i = 0;
+		for(int port : parameters.httpPorts)
+		{
+			loops[i % parameters.threadCount].listenPort(port, ExecutorType::server);
+			++i;
+		}
+		for(int port : parameters.httpsPorts)
+		{
+			loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl);
+			++i;
+		}
 
 		//=================================================
 
-		for(int i=0;i<params.threadCount - 1;++i)
+		if(parameters.threadCount > 1)
+		{
+			threads = new std::thread[parameters.threadCount - 1];
+
+			for(int i=0;i<parameters.threadCount - 1;++i)
+			{
+				threads[i] = std::thread(&PollLoop::run, &loops[i]);
+			}
+		}
+
+		//=================================================
+
+		loops[parameters.threadCount - 1].run();
+
+		//=================================================
+
+		for(int i=0;i<parameters.threadCount - 1;++i)
 		{
 			loops[i].stop();
 		}
 
-		for(int i=0;i<params.threadCount - 1;++i)
+		for(int i=0;i<parameters.threadCount - 1;++i)
 		{
 			threads[i].join();
 		}
@@ -64,14 +73,21 @@ class Server{
 
 		delete[] threads;
 		threads = nullptr;
+
+		return 0;
+	}
+
+	void destroy()
+	{
+
 	}
 
 	int createRequestExecutor(int fd)
 	{
-		int minFds = MAX_INT;
+		int minFds = INT_MAX;
 		int minIndex = 0;
 
-		for(int i=0;i<params;++i)
+		for(int i=0;i<parameters.threadCount;++i)
 		{
 			int numberOfFds = loops[i].numberOfFds();
 			if(numberOfFds < minFds)
@@ -81,12 +97,11 @@ class Server{
 			}
 		}
 
-		loops[i].enqueueFd(fd);
-
-		return 0;
+		return loops[minIndex].enqueueClientFd(fd);
 	}
 
-	ServerParameters params;
+	ServerParameters parameters;
+
 	PollLoop *loops;
 	std::thread *threads;
 };

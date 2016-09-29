@@ -2,6 +2,7 @@
 #define SERVER_PARAMETERS_H
 
 #include <Log.h>
+#include <vector>
 
 struct ServerParameters
 {

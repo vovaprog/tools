@@ -20,29 +20,30 @@
 
 #include <ProcessResult.h>
 #include <NetworkUtils.h>
-#include <ServerContext.h>
 #include <Executor.h>
 #include <ExecutorData.h>
-#include <ServerBase.h>
+#include <PollLoopBase.h>
+#include <Log.h>
 
 class ServerExecutor: public Executor
 {
 public:
 	int init(PollLoopBase *srv)
 	{
-		this->srv = srv;
+		this->loop = srv;
+		log = loop->log;
 		return 0;
 	}
 
     int up(ExecutorData &data) override
     {
-		data.fd0 = socketListen(data.ctx->parameters.port);
+		data.fd0 = socketListen(data.port);
 		if(data.fd0 < 0)
 		{
 			return -1;
 		}
 
-		if(srv->addPollFd(data, data.fd0, EPOLLIN) != 0)
+		if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)
 		{
 			return -1;
 		}
@@ -54,7 +55,7 @@ public:
     {
         if(fd != data.fd0)
         {
-			data.ctx->log->error("invalid file\n");
+			log->error("invalid file\n");
 			return ProcessResult::ok;
         }
 
@@ -65,11 +66,11 @@ public:
 
         if(clientSockFd == -1)
         {
-            data.ctx->log->error("accept failed: %s", strerror(errno));
+			log->error("accept failed: %s", strerror(errno));
 			return ProcessResult::shutdown;
         }
 
-		srv->createRequestExecutor(clientSockFd);
+		loop->createRequestExecutor(clientSockFd);
 
 		/*ExecutorData *clientData = srv->createExecutorData();
 
@@ -98,7 +99,8 @@ public:
 		return ProcessResult::ok;
     }
 
-	PollLoopBase *srv = nullptr;
+	PollLoopBase *loop = nullptr;
+	Log *log = nullptr;
 };
 
 #endif

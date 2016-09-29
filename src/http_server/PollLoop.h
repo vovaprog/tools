@@ -8,6 +8,8 @@
 #include <queue>
 #include <mutex>
 #include <sys/eventfd.h>
+#include <atomic>
+#include <boost/lockfree/spsc_queue.hpp>
 
 #include <RequestExecutor.h>
 #include <FileExecutor.h>
@@ -15,20 +17,95 @@
 #include <ServerExecutor.h>
 #include <ProcessResult.h>
 #include <ServerParameters.h>
-#include <ServerContext.h>
 #include <LogStdout.h>
 #include <ExecutorData.h>
 #include <PollData.h>
 #include <PollLoopBase.h>
+#include <ServerBase.h>
+#include <NewFdExecutor.h>
+#include <ServerBase.h>
 
 
 class PollLoop: public PollLoopBase
 {
 public:
+	PollLoop(): newFdsQueue(MAX_NEW_FDS) { }
+
 	~PollLoop()
     {
         destroy();
     }
+
+	int init(ServerBase *srv, ServerParameters *params)
+	{
+		this->srv = srv;
+		this->parameters = params;
+
+		strcpy(fileNameBuffer, params->rootFolder);
+		strcat(fileNameBuffer, "/");
+		rootFolderLength = strlen(fileNameBuffer);
+
+		logStdout.init(params->logLevel);
+		log = &logStdout;
+
+
+		signal(SIGPIPE, SIG_IGN);
+
+
+		if(initDataStructs() != 0)
+		{
+			destroy();
+			return -1;
+		}
+
+
+		epollFd = epoll_create1(0);
+		if(epollFd == -1)
+		{
+			perror("epoll_create1 failed");
+			destroy();
+			return -1;
+		}
+
+
+		if(createEventFd() != 0)
+		{
+			destroy();
+			return -1;
+		}
+
+		serverExecutor.init(this);
+		requestExecutor.init(this);
+		fileExecutor.init(this);
+		uwsgiExecutor.init(this);
+		newFdExecutor.init(this);
+
+		return 0;
+	}
+
+	int createEventFd()
+	{
+		fdEvent = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE); //check flags !!!
+
+		if(fdEvent < 0)
+		{
+			log->error("eventfd failed: %s\n", strerror(errno));
+			destroy();
+			return -1;
+		}
+
+		ExecutorData *execData = createExecutorData();
+		execData->fd0 = fdEvent;
+		execData->pExecutor = &newFdExecutor;
+
+		if(addPollFd(*execData, fdEvent, EPOLLIN) != 0)
+		{
+			removeExecutorData(execData);
+			return -1;
+		}
+
+		return 0;
+	}
 
     void destroy()
     {
@@ -52,11 +129,16 @@ public:
             close(epollFd);
             epollFd = -1;
         }
+		if(fdEvent > 0)
+		{
+			close(fdEvent);
+			fdEvent = -1;
+		}
     }
 
-    int initDataStructs(ServerParameters &params)
+	int initDataStructs()
     {
-        MAX_CLIENTS = params.maxClients;
+		MAX_CLIENTS = parameters->maxClients;
         MAX_EVENTS = MAX_CLIENTS * 2 + 1;
 
         execDatas = new ExecutorData[MAX_CLIENTS];
@@ -73,7 +155,6 @@ public:
         }
         for(int i = 0; i < MAX_CLIENTS; ++i)
         {
-            execDatas[i].ctx = &ctx;
 			execDatas[i].index = i;
         }
         return 0;
@@ -83,13 +164,13 @@ public:
     {
         if(emptyPollDatas.size() == 0)
         {
-            ctx.log->error("too many connections\n");
+			log->error("too many connections\n");
             return -1;
         }
 
 		if(fd != data.fd0 && fd != data.fd1)
 		{
-			ctx.log->error("invalid argument\n");
+			log->error("invalid argument\n");
 			return -1;
 		}
 
@@ -153,7 +234,7 @@ public:
 	{
 		if(epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) != 0)
 		{
-			ctx.log->error("epoll_ctl failed: %s\n", strerror(errno));
+			log->error("epoll_ctl failed: %s\n", strerror(errno));
 			return -1;
 		}
 		if(fd == data.fd0)
@@ -167,7 +248,7 @@ public:
 		return 0;
 	}
 
-    int openServerSocket(ServerParameters &params)
+	/*int openServerSocket(ServerParameters &params)
     {
 		ExecutorData *pExecData = createExecutorData();
 
@@ -180,7 +261,7 @@ public:
 		}
 
         return 0;
-    }
+	}*/
 
 	Executor* getExecutor(ExecutorType execType) override
 	{
@@ -202,7 +283,7 @@ public:
 	{
 		if(emptyExecDatas.size() == 0)
 		{
-			ctx.log->error("too many connections\n");
+			log->error("too many connections\n");
 			return nullptr;
 		}
 
@@ -228,50 +309,43 @@ public:
 		emptyExecDatas.push(execData->index);
 	}
 
-    int run(ServerParameters &params)
+	int listenPort(int port, ExecutorType execType)
+	{
+		ExecutorData *pExecData = createExecutorData();
+
+		pExecData->pExecutor = getExecutor(execType);
+		pExecData->port = port;
+
+		if(pExecData->pExecutor->up(*pExecData) != 0)
+		{
+			removeExecutorData(pExecData);
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int createRequestExecutorInternal(int fd)
+	{
+		ExecutorData *pExecData = createExecutorData();
+
+		pExecData->pExecutor = &requestExecutor;
+		pExecData->fd0 = fd;
+
+		if(pExecData->pExecutor->up(*pExecData) != 0)
+		{
+			removeExecutorData(pExecData);
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int run()
     {
-		serverExecutor.init(this);
-		requestExecutor.init(this);
-		fileExecutor.init(this);
-		uwsgiExecutor.init(this);
+		runFlag.store(true);
 
-        strcpy(ctx.fileNameBuffer, params.rootFolder);
-        strcat(ctx.fileNameBuffer, "/");
-        ctx.rootFolderLength = strlen(ctx.fileNameBuffer);
-
-        logStdout.init(params.logLevel);
-        ctx.log = &logStdout;
-
-        ctx.parameters = params;
-
-
-        signal(SIGPIPE, SIG_IGN);
-
-
-        if(initDataStructs(params) != 0)
-        {
-            destroy();
-            return -1;
-        }
-
-
-        epollFd = epoll_create1(0);
-        if(epollFd == -1)
-        {
-            perror("epoll_create1 failed");
-            destroy();
-            return -1;
-        }
-
-
-        if(openServerSocket(params) != 0)
-        {
-            destroy();
-            return -1;
-        }
-
-
-        while(epollFd > 0)
+		while(epollFd > 0 && runFlag.load())
         {
             printStats();
 
@@ -289,6 +363,11 @@ public:
                     return -1;
                 }
             }
+			if(!runFlag.load())
+			{
+				destroy();
+				return 0;
+			}
 
             for(int i = 0; i < nEvents; ++i)
             {
@@ -312,32 +391,67 @@ public:
         return 0;
     }
 
-	int enqueueFd(int fd)
+	void stop()
 	{
+		runFlag.store(false);
+		eventfd_write(fdEvent, 1);
+	}
+
+	int enqueueClientFd(int fd)
+	{
+		if(!newFdsQueue.push(fd))
 		{
-			std::lock_guard<std::mutex> lock(newFdsMutex);
-			newFds.push(fd);
+			return -1;
 		}
 
-		eventfd_t value = 1;
-		eventfd_write(wakeupFd, value);
+		eventfd_write(fdEvent, 1);
 
 		return 0;
+	}
+
+	int checkNewFd() override
+	{
+		int fd;
+		while(newFdsQueue.pop(fd))
+		{
+			if(createRequestExecutorInternal(fd) != 0)
+			{
+				close(fd);
+			}
+		}
+		return 0;
+	}
+
+	int createRequestExecutor(int fd) override
+	{
+		if(parameters->threadCount == 1)
+		{
+			return createRequestExecutorInternal(fd);
+		}
+		else
+		{
+			return srv->createRequestExecutor(fd);
+		}
+	}
+
+	int numberOfFds()
+	{
+		return MAX_EVENTS - emptyPollDatas.size();
 	}
 
 protected:
 
     void printStats()
     {
-        ctx.log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecDatas.size() - 1);
+		log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecDatas.size() - 1);
     }
 
     ServerExecutor serverExecutor;
     RequestExecutor requestExecutor;
     FileExecutor fileExecutor;
     UwsgiExecutor uwsgiExecutor;
+	NewFdExecutor newFdExecutor;
 
-    ServerContext ctx;
     LogStdout logStdout;
 
     ExecutorData *execDatas = nullptr;
@@ -351,8 +465,14 @@ protected:
 
     int MAX_CLIENTS = 0, MAX_EVENTS = 0;
 
-	std::queue<int> newFds;
-	std::mutex newFdsMutex;
+	ServerBase *srv;
+
+	std::atomic_bool runFlag;
+
+	static const int MAX_NEW_FDS = 1000;
+	boost::lockfree::spsc_queue<int> newFdsQueue;
+
+	int fdEvent = -1;
 };
 
 #endif
