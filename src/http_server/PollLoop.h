@@ -25,6 +25,7 @@
 #include <NewFdExecutor.h>
 #include <ServerBase.h>
 #include <SslRequestExecutor.h>
+#include <SslServerExecutor.h>
 
 
 class PollLoop: public PollLoopBase
@@ -79,6 +80,7 @@ public:
         fileExecutor.init(this);
         uwsgiExecutor.init(this);
         newFdExecutor.init(this);
+        sslRequestExecutor.init(this);
 
         numOfPollFds.store(0);
 
@@ -391,6 +393,8 @@ protected:
             return &serverExecutor;
 		case ExecutorType::serverSsl:
 			return &sslServerExecutor;
+        case ExecutorType::requestSsl:
+            return &sslRequestExecutor;
         default:
             return nullptr;
         }
@@ -447,8 +451,9 @@ protected:
 
 
     ServerExecutor serverExecutor;
-	ServerExecutor sslServerExecutor;
+    SslServerExecutor sslServerExecutor;
     RequestExecutor requestExecutor;
+    SslRequestExecutor sslRequestExecutor;
     FileExecutor fileExecutor;
     UwsgiExecutor uwsgiExecutor;
     NewFdExecutor newFdExecutor;

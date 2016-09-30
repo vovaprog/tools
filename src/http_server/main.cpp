@@ -33,7 +33,10 @@ int main(int argc, char** argv)
 
 	params.httpsPorts.push_back(1443);
 
-    srv.start(params);
+    if(srv.start(params) != 0)
+    {
+        return -1;
+    }
 
     while(runFlag.load())
     {
