@@ -1,5 +1,5 @@
-#ifndef SERVER_EXECUTOR_H
-#define SERVER_EXECUTOR_H
+#ifndef SSL_SERVER_EXECUTOR_H
+#define SSL_SERVER_EXECUTOR_H
 
 #include <sys/sendfile.h>
 #include <errno.h>
@@ -17,6 +17,9 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include <ProcessResult.h>
 #include <NetworkUtils.h>
@@ -25,12 +28,12 @@
 #include <PollLoopBase.h>
 #include <Log.h>
 
-class ServerExecutor: public Executor
+class SslServerExecutor: public Executor
 {
 public:
-    int init(PollLoopBase *srv) override
+	int init(PollLoopBase *loop) override
     {
-        this->loop = srv;
+		this->loop = loop;
         log = loop->log;
         return 0;
     }
@@ -51,6 +54,48 @@ public:
         return 0;
     }
 
+	static int initSsl(Log *log, SSL_CTX* &globalSslCtx)
+	{
+		SSL_load_error_strings ();
+		SSL_library_init ();
+
+		globalSslCtx = SSL_CTX_new (SSLv23_method());
+		if(globalSslCtx == NULL)
+		{
+			log->error("SSL_CTX_new failed\n");
+			return -1;
+		}
+
+		//BIO* errBio = BIO_new_fd(2, BIO_NOCLOSE);
+
+		if(SSL_CTX_use_certificate_file(globalSslCtx, "server.pem", SSL_FILETYPE_PEM) <= 0)
+		{
+			log->error("SSL_CTX_use_certificate_file failed\n");
+			SSL_CTX_free(globalSslCtx);
+			return -1;
+		}
+
+		if(SSL_CTX_use_PrivateKey_file(globalSslCtx, "server.pem", SSL_FILETYPE_PEM) <= 0)
+		{
+			log->error("SSL_CTX_use_PrivateKey_file failed\n");
+			SSL_CTX_free(globalSslCtx);
+			return -1;
+		}
+
+		if(SSL_CTX_check_private_key(globalSslCtx) <= 0)
+		{
+			log->error("SSL_CTX_check_private_key\n");
+			SSL_CTX_free(globalSslCtx);
+			return -1;
+		}
+
+		log->info("ssl inited\n");
+
+		return 0;
+	}
+
+
+
     ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(fd != data.fd0)
@@ -70,7 +115,7 @@ public:
             return ProcessResult::shutdown;
         }
 
-		loop->createRequestExecutor(clientSockFd, ExecutorType::request);
+		loop->createRequestExecutor(clientSockFd, ExecutorType::requestSsl);
 
         return ProcessResult::ok;
     }

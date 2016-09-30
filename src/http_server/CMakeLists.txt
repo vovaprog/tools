@@ -8,6 +8,7 @@ set(SOURCE
 	main.cpp 
 	Executor.h
 	ServerExecutor.h
+    SslServerExecutor.h
     RequestExecutor.h
     FileExecutor.h
     Server.h
@@ -21,6 +22,7 @@ set(SOURCE
     ServerBase.h
     ExecutorType.h
     NewFdExecutor.h
+    SslRequestExecutor.h
     percent_decode.h percent_decode.c
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
@@ -31,4 +33,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthre
 
 add_executable(http_server ${SOURCE})
 
+target_link_libraries(http_server ssl)
 

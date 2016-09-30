@@ -31,6 +31,8 @@ int main(int argc, char** argv)
     params.httpPorts.push_back(7000);
     params.httpPorts.push_back(11000);
 
+	params.httpsPorts.push_back(1443);
+
     srv.start(params);
 
     while(runFlag.load())

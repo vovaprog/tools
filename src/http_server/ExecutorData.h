@@ -1,6 +1,8 @@
 #ifndef EXECUTOR_DATA_H
 #define EXECUTOR_DATA_H
 
+#include <openssl/ssl.h>
+
 #include <TransferRingBuffer.h>
 
 class Executor;
@@ -33,6 +35,14 @@ struct ExecutorData
         filePosition = 0;
 
         buffer.clear();
+
+		if(ssl != nullptr)
+		{
+			SSL_shutdown(ssl);
+			SSL_free(ssl);
+			ssl = nullptr;
+		}
+
         return;
     }
 
@@ -40,7 +50,7 @@ struct ExecutorData
 
     enum class State
     {
-        readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite
+		readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite, sslHandshake
     };
 
     int index = -1;
@@ -60,6 +70,8 @@ struct ExecutorData
     TransferRingBuffer buffer;
 
     int port = 0;
+
+	SSL *ssl = nullptr;
 };
 
 #endif

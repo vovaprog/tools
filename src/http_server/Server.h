@@ -9,6 +9,7 @@
 #include <climits>
 #include <Log.h>
 #include <LogStdout.h>
+#include <SslServerExecutor.h>
 
 class Server: public ServerBase
 {
@@ -26,6 +27,15 @@ public:
 
         logStdout.init(parameters.logLevel);
         log = &logStdout;
+
+
+		if(parameters.httpsPorts.size()>0)
+		{
+			if(SslServerExecutor::initSsl(log, globalSslCtx) != 0)
+			{
+				return -1;
+			}
+		}
 
 
         loops = new PollLoop[parameters.threadCount];
@@ -104,7 +114,7 @@ public:
         }
     }
 
-    int createRequestExecutor(int fd) override
+	int createRequestExecutor(int fd, ExecutorType execType) override
     {
         int minPollFds = INT_MAX;
         int minIndex = 0;
@@ -119,7 +129,7 @@ public:
             }
         }
 
-        if(loops[minIndex].enqueueClientFd(fd) != 0)
+		if(loops[minIndex].enqueueClientFd(fd, execType) != 0)
         {
             log->error("enqueueClientFd failed\n");
             close(fd);
@@ -148,7 +158,7 @@ protected:
     LogStdout logStdout;
 
     PollLoop *loops = nullptr;
-    std::thread *threads = nullptr;
+    std::thread *threads = nullptr;	
 };
 
 #endif

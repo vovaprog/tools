@@ -6,6 +6,7 @@
 #include <Log.h>
 #include <ServerParameters.h>
 #include <ExecutorType.h>
+#include <ServerBase.h>
 
 class PollLoopBase
 {
@@ -19,7 +20,7 @@ public:
     virtual int editPollFd(ExecutorData &data, int fd, int events) = 0;
     virtual int removePollFd(ExecutorData &data, int fd) = 0;
 
-    virtual int createRequestExecutor(int fd) = 0;
+	virtual int createRequestExecutor(int fd, ExecutorType execType) = 0;
     virtual int checkNewFd() = 0;
 
     Log *log = nullptr;
@@ -29,6 +30,8 @@ public:
     int rootFolderLength = 0;
 
     ServerParameters *parameters = nullptr;
+
+	ServerBase *srv = nullptr;
 };
 
 #endif

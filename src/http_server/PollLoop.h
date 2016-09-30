@@ -24,6 +24,7 @@
 #include <ServerBase.h>
 #include <NewFdExecutor.h>
 #include <ServerBase.h>
+#include <SslRequestExecutor.h>
 
 
 class PollLoop: public PollLoopBase
@@ -73,6 +74,7 @@ public:
         }
 
         serverExecutor.init(this);
+		sslServerExecutor.init(this);
         requestExecutor.init(this);
         fileExecutor.init(this);
         uwsgiExecutor.init(this);
@@ -138,12 +140,16 @@ public:
         eventfd_write(eventFd, 1);
     }
 
-    int enqueueClientFd(int fd)
+	int enqueueClientFd(int fd, ExecutorType execType)
     {
         {
             std::lock_guard<std::mutex> lock(newFdsMutex);
 
-            if(!newFdsQueue.push(fd))
+			NewFdData fdData;
+			fdData.fd = fd;
+			fdData.execType = execType;
+
+			if(!newFdsQueue.push(fdData))
             {
                 return -1;
             }
@@ -156,26 +162,26 @@ public:
 
     int checkNewFd() override
     {
-        int fd;
-        while(newFdsQueue.pop(fd))
+		NewFdData fdData;
+		while(newFdsQueue.pop(fdData))
         {
-            if(createRequestExecutorInternal(fd) != 0)
+			if(createRequestExecutorInternal(fdData.fd, fdData.execType) != 0)
             {
-                close(fd);
+				close(fdData.fd);
             }
         }
         return 0;
     }
 
-    int createRequestExecutor(int fd) override
+	int createRequestExecutor(int fd, ExecutorType execType) override
     {
         if(parameters->threadCount == 1)
         {
-            return createRequestExecutorInternal(fd);
+			return createRequestExecutorInternal(fd, execType);
         }
         else
         {
-            return srv->createRequestExecutor(fd);
+			return srv->createRequestExecutor(fd, execType);
         }
     }
 
@@ -282,6 +288,7 @@ public:
         pExecData->pExecutor = getExecutor(execType);
         pExecData->port = port;
 
+
         if(pExecData->pExecutor->up(*pExecData) != 0)
         {
             removeExecutorData(pExecData);
@@ -382,6 +389,8 @@ protected:
             return &uwsgiExecutor;
         case ExecutorType::server:
             return &serverExecutor;
+		case ExecutorType::serverSsl:
+			return &sslServerExecutor;
         default:
             return nullptr;
         }
@@ -420,11 +429,11 @@ protected:
     }
 
 
-    int createRequestExecutorInternal(int fd)
+	int createRequestExecutorInternal(int fd, ExecutorType execType)
     {
         ExecutorData *pExecData = createExecutorData();
 
-        pExecData->pExecutor = &requestExecutor;
+		pExecData->pExecutor = getExecutor(execType);
         pExecData->fd0 = fd;
 
         if(pExecData->pExecutor->up(*pExecData) != 0)
@@ -438,6 +447,7 @@ protected:
 
 
     ServerExecutor serverExecutor;
+	ServerExecutor sslServerExecutor;
     RequestExecutor requestExecutor;
     FileExecutor fileExecutor;
     UwsgiExecutor uwsgiExecutor;
@@ -456,12 +466,14 @@ protected:
 
     int MAX_EXECUTORS = 0, MAX_EVENTS = 0;
 
-    ServerBase *srv = nullptr;
-
     std::atomic_bool runFlag;
 
     static const int MAX_NEW_FDS = 1000;
-    boost::lockfree::spsc_queue<int> newFdsQueue;
+	struct NewFdData{
+		ExecutorType execType;
+		int fd;
+	};
+	boost::lockfree::spsc_queue<NewFdData> newFdsQueue;
     std::mutex newFdsMutex;
 
     int epollFd = -1;
