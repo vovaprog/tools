@@ -3,12 +3,13 @@
 
 #include <Log.h>
 
-class ServerBase {
+class ServerBase
+{
 public:
 
-	virtual int createRequestExecutor(int fd) = 0;
+    virtual int createRequestExecutor(int fd) = 0;
 
-	Log *log = nullptr;
+    Log *log = nullptr;
 };
 
 #endif

@@ -10,144 +10,145 @@
 #include <Log.h>
 #include <LogStdout.h>
 
-class Server: public ServerBase{
+class Server: public ServerBase
+{
 public:
 
-	~Server()
-	{
-		stop();
-	}
+    ~Server()
+    {
+        stop();
+    }
 
-	int start(ServerParameters &parameters)
-	{
-		this->parameters = parameters;
-
-
-		logStdout.init(parameters.logLevel);
-		log = &logStdout;
+    int start(ServerParameters &parameters)
+    {
+        this->parameters = parameters;
 
 
-		loops = new PollLoop[parameters.threadCount];
+        logStdout.init(parameters.logLevel);
+        log = &logStdout;
 
-		for(int i=0;i<parameters.threadCount;++i)
-		{
-			if(loops[i].init(this, &parameters) != 0)
-			{
-				stop();
-				return -1;
-			}
-		}
 
-		//=================================================
+        loops = new PollLoop[parameters.threadCount];
 
-		int i = 0;
-		for(int port : parameters.httpPorts)
-		{
-			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::server) != 0)
-			{
-				stop();
-				return -1;
-			}
-			++i;
-		}
-		for(int port : parameters.httpsPorts)
-		{
-			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl) != 0)
-			{
-				stop();
-				return -1;
-			}
-			++i;
-		}
+        for(int i = 0; i < parameters.threadCount; ++i)
+        {
+            if(loops[i].init(this, &parameters) != 0)
+            {
+                stop();
+                return -1;
+            }
+        }
 
-		//=================================================
+        //=================================================
 
-		threads = new std::thread[parameters.threadCount];
+        int i = 0;
+        for(int port : parameters.httpPorts)
+        {
+            if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::server) != 0)
+            {
+                stop();
+                return -1;
+            }
+            ++i;
+        }
+        for(int port : parameters.httpsPorts)
+        {
+            if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl) != 0)
+            {
+                stop();
+                return -1;
+            }
+            ++i;
+        }
 
-		for(int i=0;i<parameters.threadCount;++i)
-		{
-			threads[i] = std::thread(&PollLoop::run, &loops[i]);
-		}
+        //=================================================
 
-		return 0;
-	}
+        threads = new std::thread[parameters.threadCount];
 
-	void stop()
-	{
-		if(loops != nullptr)
-		{
-			for(int i=0;i<parameters.threadCount;++i)
-			{
-				loops[i].stop();
-			}
-		}
+        for(int i = 0; i < parameters.threadCount; ++i)
+        {
+            threads[i] = std::thread(&PollLoop::run, &loops[i]);
+        }
 
-		if(threads != nullptr)
-		{
-			for(int i=0;i<parameters.threadCount;++i)
-			{
-				threads[i].join();
-			}
-		}
+        return 0;
+    }
 
-		if(loops != nullptr)
-		{
-			delete[] loops;
-			loops = nullptr;
-		}
+    void stop()
+    {
+        if(loops != nullptr)
+        {
+            for(int i = 0; i < parameters.threadCount; ++i)
+            {
+                loops[i].stop();
+            }
+        }
 
-		if(threads!= nullptr)
-		{
-			delete[] threads;
-			threads = nullptr;
-		}
-	}
+        if(threads != nullptr)
+        {
+            for(int i = 0; i < parameters.threadCount; ++i)
+            {
+                threads[i].join();
+            }
+        }
 
-	int createRequestExecutor(int fd) override
-	{
-		int minPollFds = INT_MAX;
-		int minIndex = 0;
+        if(loops != nullptr)
+        {
+            delete[] loops;
+            loops = nullptr;
+        }
 
-		for(int i=0;i<parameters.threadCount;++i)
-		{
-			int numberOfFds = loops[i].numberOfPollFds();
-			if(numberOfFds < minPollFds)
-			{
-				minPollFds = numberOfFds;
-				minIndex = i;
-			}
-		}
+        if(threads != nullptr)
+        {
+            delete[] threads;
+            threads = nullptr;
+        }
+    }
 
-		if(loops[minIndex].enqueueClientFd(fd) != 0)
-		{
-			log->error("enqueueClientFd failed\n");
-			close(fd);
-			return -1;
-		}
+    int createRequestExecutor(int fd) override
+    {
+        int minPollFds = INT_MAX;
+        int minIndex = 0;
 
-		return 0;
-	}	
+        for(int i = 0; i < parameters.threadCount; ++i)
+        {
+            int numberOfFds = loops[i].numberOfPollFds();
+            if(numberOfFds < minPollFds)
+            {
+                minPollFds = numberOfFds;
+                minIndex = i;
+            }
+        }
 
-	void logStats()
-	{
-		int numberOfFds = 0;
+        if(loops[minIndex].enqueueClientFd(fd) != 0)
+        {
+            log->error("enqueueClientFd failed\n");
+            close(fd);
+            return -1;
+        }
 
-		for(int i=0;i<parameters.threadCount;++i)
-		{
-			numberOfFds += loops[i].numberOfPollFds();
-		}
+        return 0;
+    }
 
-		log->debug("open files: %d\n", numberOfFds);
-	}
+    void logStats()
+    {
+        int numberOfFds = 0;
+
+        for(int i = 0; i < parameters.threadCount; ++i)
+        {
+            numberOfFds += loops[i].numberOfPollFds();
+        }
+
+        log->debug("open files: %d\n", numberOfFds);
+    }
 
 protected:
 
-	ServerParameters parameters;
+    ServerParameters parameters;
 
-	LogStdout logStdout;	
+    LogStdout logStdout;
 
-	PollLoop *loops = nullptr;
-	std::thread *threads = nullptr;
+    PollLoop *loops = nullptr;
+    std::thread *threads = nullptr;
 };
 
 #endif

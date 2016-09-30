@@ -28,35 +28,35 @@
 class ServerExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *srv) override
-	{
-		this->loop = srv;
-		log = loop->log;
-		return 0;
-	}
+    int init(PollLoopBase *srv) override
+    {
+        this->loop = srv;
+        log = loop->log;
+        return 0;
+    }
 
     int up(ExecutorData &data) override
     {
-		data.fd0 = socketListen(data.port);
-		if(data.fd0 < 0)
-		{
-			return -1;
-		}
+        data.fd0 = socketListen(data.port);
+        if(data.fd0 < 0)
+        {
+            return -1;
+        }
 
-		if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)
-		{
-			return -1;
-		}
+        if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)
+        {
+            return -1;
+        }
 
         return 0;
     }
 
-	ProcessResult process(ExecutorData &data, int fd, int events) override
+    ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(fd != data.fd0)
         {
-			log->error("invalid file\n");
-			return ProcessResult::ok;
+            log->error("invalid file\n");
+            return ProcessResult::ok;
         }
 
         struct sockaddr_in address;
@@ -66,41 +66,41 @@ public:
 
         if(clientSockFd == -1)
         {
-			log->error("accept failed: %s", strerror(errno));
-			return ProcessResult::shutdown;
+            log->error("accept failed: %s", strerror(errno));
+            return ProcessResult::shutdown;
         }
 
-		loop->createRequestExecutor(clientSockFd);
+        loop->createRequestExecutor(clientSockFd);
 
-		/*ExecutorData *clientData = srv->createExecutorData();
+        /*ExecutorData *clientData = srv->createExecutorData();
 
-		if(clientData == nullptr)
-		{
-			close(clientSockFd);
-			return ProcessResult::ok;
-		}
+        if(clientData == nullptr)
+        {
+        	close(clientSockFd);
+        	return ProcessResult::ok;
+        }
 
-		clientData->fd0 = clientSockFd;
-		clientData->pExecutor = srv->getExecutor(ExecutorType::request);
-		if(srv->addPollFd(*clientData, clientData->fd0, EPOLLIN)!=0)
-		{
-			srv->removeExecutorData(clientData);
-			return ProcessResult::ok;
-		}
+        clientData->fd0 = clientSockFd;
+        clientData->pExecutor = srv->getExecutor(ExecutorType::request);
+        if(srv->addPollFd(*clientData, clientData->fd0, EPOLLIN)!=0)
+        {
+        	srv->removeExecutorData(clientData);
+        	return ProcessResult::ok;
+        }
 
-		clientData->state = ExecutorData::State::readRequest;
+        clientData->state = ExecutorData::State::readRequest;
 
-		if(clientData->pExecutor->up(*clientData) != 0)
-		{
-			srv->removeExecutorData(clientData);
-			return ProcessResult::ok;
-		}*/
+        if(clientData->pExecutor->up(*clientData) != 0)
+        {
+        	srv->removeExecutorData(clientData);
+        	return ProcessResult::ok;
+        }*/
 
-		return ProcessResult::ok;
+        return ProcessResult::ok;
     }
 
-	PollLoopBase *loop = nullptr;
-	Log *log = nullptr;
+    PollLoopBase *loop = nullptr;
+    Log *log = nullptr;
 };
 
 #endif

@@ -12,7 +12,7 @@ class LogStdout: public Log
     {
         if(level <= Level::debug)
         {
-			std::lock_guard<std::mutex> lock(logMtx);
+            std::lock_guard<std::mutex> lock(logMtx);
 
             printf("[DEBUG]   ");
             va_list args;
@@ -26,7 +26,7 @@ class LogStdout: public Log
     {
         if(level <= Level::info)
         {
-			std::lock_guard<std::mutex> lock(logMtx);
+            std::lock_guard<std::mutex> lock(logMtx);
 
             printf("[INFO]    ");
             va_list args;
@@ -40,7 +40,7 @@ class LogStdout: public Log
     {
         if(level <= Level::warning)
         {
-			std::lock_guard<std::mutex> lock(logMtx);
+            std::lock_guard<std::mutex> lock(logMtx);
 
             printf("[WARNING] ");
             va_list args;
@@ -52,7 +52,7 @@ class LogStdout: public Log
 
     void error(const char* format, ...) override
     {
-		std::lock_guard<std::mutex> lock(logMtx);
+        std::lock_guard<std::mutex> lock(logMtx);
 
         printf("[ERROR]   ");
         va_list args;
@@ -62,7 +62,7 @@ class LogStdout: public Log
     }
 
 private:
-	std::mutex logMtx;
+    std::mutex logMtx;
 };
 
 

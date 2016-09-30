@@ -13,28 +13,28 @@ class FileExecutor: public Executor
 {
 public:
 
-	int init(PollLoopBase *loop) override
-	{
-		this->loop = loop;
-		this->log = loop->log;
-		return 0;
-	}
+    int init(PollLoopBase *loop) override
+    {
+        this->loop = loop;
+        this->log = loop->log;
+        return 0;
+    }
 
     int up(ExecutorData &data) override
     {
-		data.bytesToSend = fileSize(loop->fileNameBuffer);
+        data.bytesToSend = fileSize(loop->fileNameBuffer);
 
         if(data.bytesToSend < 0)
         {
-			log->info("fileSize failed: %s\n", strerror(errno));
+            log->info("fileSize failed: %s\n", strerror(errno));
             return -1;
         }
 
-		data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
+        data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
 
         if(data.fd1 < 0)
         {
-			log->error("open failed: %s\n", strerror(errno));
+            log->error("open failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -43,29 +43,29 @@ public:
             return -1;
         }
 
-		if(loop->editPollFd(data, data.fd0, EPOLLOUT) != 0)
-		{
-			return -1;
-		}
+        if(loop->editPollFd(data, data.fd0, EPOLLOUT) != 0)
+        {
+            return -1;
+        }
 
         data.state = ExecutorData::State::sendResponse;
 
         return 0;
     }
 
-	ProcessResult process(ExecutorData &data, int fd, int events) override
+    ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(data.state == ExecutorData::State::sendResponse && fd == data.fd0 && (events & EPOLLOUT))
         {
-			return process_sendResponseSendData(data);
+            return process_sendResponseSendData(data);
         }
         if(data.state == ExecutorData::State::sendFile && fd == data.fd0 && (events & EPOLLOUT))
         {
-			return process_sendFile(data);
+            return process_sendFile(data);
         }
 
-		log->warning("invalid process call\n");
-		return ProcessResult::ok;
+        log->warning("invalid process call\n");
+        return ProcessResult::ok;
     }
 
 
@@ -87,12 +87,12 @@ protected:
         }
         else
         {
-			log->warning("buffer.startWrite failed\n");
+            log->warning("buffer.startWrite failed\n");
             return -1;
         }
     }
 
-	ProcessResult process_sendResponseSendData(ExecutorData &data)
+    ProcessResult process_sendResponseSendData(ExecutorData &data)
     {
         void *p;
         int size;
@@ -105,7 +105,7 @@ protected:
             {
                 if(errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
                 {
-					return ProcessResult::removeExecutor;
+                    return ProcessResult::removeExecutor;
                 }
             }
             else
@@ -118,27 +118,27 @@ protected:
                 }
             }
 
-			return ProcessResult::ok;
+            return ProcessResult::ok;
         }
         else
         {
-			return ProcessResult::removeExecutor;
+            return ProcessResult::removeExecutor;
         }
     }
 
-	ProcessResult process_sendFile(ExecutorData &data)
+    ProcessResult process_sendFile(ExecutorData &data)
     {
         int bytesWritten = sendfile(data.fd0, data.fd1, &data.filePosition, data.bytesToSend);
         if(bytesWritten <= 0)
         {
             if(errno == EAGAIN || errno == EWOULDBLOCK)
-			{
-				return ProcessResult::ok;
+            {
+                return ProcessResult::ok;
             }
             else
             {
                 perror("sendfile failed");
-				return ProcessResult::removeExecutor;
+                return ProcessResult::removeExecutor;
             }
 
         }
@@ -147,14 +147,14 @@ protected:
 
         if(data.bytesToSend == 0)
         {
-			return ProcessResult::removeExecutor;
+            return ProcessResult::removeExecutor;
         }
 
-		return ProcessResult::ok;
+        return ProcessResult::ok;
     }
 
-	PollLoopBase *loop = nullptr;
-	Log *log = nullptr;
+    PollLoopBase *loop = nullptr;
+    Log *log = nullptr;
 };
 
 #endif

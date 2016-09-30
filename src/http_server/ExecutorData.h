@@ -38,9 +38,12 @@ struct ExecutorData
 
     static const int REQUEST_BUFFER_SIZE = 1000;
 
-    enum class State { readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite };
+    enum class State
+    {
+        readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite
+    };
 
-	int index = -1;
+    int index = -1;
 
     Executor *pExecutor = nullptr;
 
@@ -54,9 +57,9 @@ struct ExecutorData
     long long int bytesToSend = 0;
     off_t filePosition = 0;
 
-	TransferRingBuffer buffer;
+    TransferRingBuffer buffer;
 
-	int port = 0;
+    int port = 0;
 };
 
 #endif

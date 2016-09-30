@@ -8,26 +8,26 @@
 class NewFdExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *loop) override
-	{
-		this->loop = loop;
-		return 0;
-	}
+    int init(PollLoopBase *loop) override
+    {
+        this->loop = loop;
+        return 0;
+    }
 
 
-	int up(ExecutorData &data) override
-	{
-		return 0;
-	}
+    int up(ExecutorData &data) override
+    {
+        return 0;
+    }
 
 
-	ProcessResult process(ExecutorData &data, int fd, int events) override
-	{
-		loop->checkNewFd();
-		return ProcessResult::ok;
-	}
+    ProcessResult process(ExecutorData &data, int fd, int events) override
+    {
+        loop->checkNewFd();
+        return ProcessResult::ok;
+    }
 
-	PollLoopBase *loop;
+    PollLoopBase *loop;
 };
 
 

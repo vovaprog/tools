@@ -4,7 +4,10 @@
 class Log
 {
 public:
-    enum class Level { debug = 1, info = 2, warning = 3, error = 4 };
+    enum class Level
+    {
+        debug = 1, info = 2, warning = 3, error = 4
+    };
 
     virtual void init(Level level)
     {

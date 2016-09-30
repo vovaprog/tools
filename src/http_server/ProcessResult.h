@@ -35,7 +35,10 @@ struct ProcessResult
     }
 };*/
 
-enum class ProcessResult { ok, removeExecutor, shutdown };
+enum class ProcessResult
+{
+    ok, removeExecutor, shutdown
+};
 
 
 #endif
