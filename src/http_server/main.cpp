@@ -7,7 +7,7 @@ Server srv;
 
 static void sig_int_handler(int i)
 {
-    printf("sig int handler\n");
+	printf("sig int\n");
 
     srv.destroy();
 

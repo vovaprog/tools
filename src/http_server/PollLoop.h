@@ -83,6 +83,211 @@ public:
 		return 0;
 	}
 
+
+	int run()
+	{
+		runFlag.store(true);
+
+		while(epollFd > 0 && runFlag.load())
+		{
+			printStats();
+
+			int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+			if(nEvents == -1)
+			{
+				if(errno == EINTR)
+				{
+					continue;
+				}
+				else
+				{
+					perror("epoll_wait failed");
+					destroy();
+					return -1;
+				}
+			}
+			if(!runFlag.load())
+			{
+				break;
+			}
+
+			for(int i = 0; i < nEvents; ++i)
+			{
+				PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
+				ExecutorData &execData = execDatas[pollData->executorDataIndex];
+
+				ProcessResult result = execData.pExecutor->process(execData, pollData->fd, events[i].events);
+
+				if(result == ProcessResult::removeExecutor)
+				{
+					removeExecutorData(&execData);
+				}
+				else if(result == ProcessResult::shutdown)
+				{
+					destroy();
+					return -1;
+				}
+			}
+		}
+
+		destroy();
+		return 0;
+	}
+
+	void stop()
+	{
+		runFlag.store(false);
+		eventfd_write(fdEvent, 1);
+	}
+
+	int enqueueClientFd(int fd)
+	{
+		if(!newFdsQueue.push(fd))
+		{
+			return -1;
+		}
+
+		eventfd_write(fdEvent, 1);
+
+		return 0;
+	}
+
+	int checkNewFd() override
+	{
+		int fd;
+		while(newFdsQueue.pop(fd))
+		{
+			if(createRequestExecutorInternal(fd) != 0)
+			{
+				close(fd);
+			}
+		}
+		return 0;
+	}
+
+	int createRequestExecutor(int fd) override
+	{
+		if(parameters->threadCount == 1)
+		{
+			return createRequestExecutorInternal(fd);
+		}
+		else
+		{
+			return srv->createRequestExecutor(fd);
+		}
+	}
+
+	int numberOfFds()
+	{
+		return MAX_EVENTS - emptyPollDatas.size();
+	}
+
+	int addPollFd(ExecutorData &data, int fd, int events) override
+	{
+		if(emptyPollDatas.size() == 0)
+		{
+			log->error("too many connections\n");
+			return -1;
+		}
+
+		if(fd != data.fd0 && fd != data.fd1)
+		{
+			log->error("invalid argument\n");
+			return -1;
+		}
+
+		int pollIndex = emptyPollDatas.top();
+
+		epoll_event ev;
+		ev.events = events;
+		ev.data.ptr = &pollDatas[pollIndex];
+		if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
+		{
+			perror("epoll_ctl failed");
+			return -1;
+		}
+
+		pollDatas[pollIndex].fd = fd;
+		pollDatas[pollIndex].executorDataIndex = data.index;
+
+		if(fd == data.fd0)
+		{
+			data.pollIndexFd0 = pollIndex;
+		}
+		else if(fd == data.fd1)
+		{
+			data.pollIndexFd1 = pollIndex;
+		}
+
+		emptyPollDatas.pop();
+
+		return 0;
+	}
+
+	int editPollFd(ExecutorData &data, int fd, int events) override
+	{
+		int pollIndex = -1;
+		if(fd == data.fd0)
+		{
+			pollIndex = data.pollIndexFd0;
+		}
+		else if(fd == data.fd1)
+		{
+			pollIndex = data.pollIndexFd1;
+		}
+		else
+		{
+			return -1;
+		}
+
+		epoll_event ev;
+		ev.events = events;
+		ev.data.ptr = &pollDatas[pollIndex];
+		if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
+		{
+			perror("epoll_ctl failed");
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int removePollFd(ExecutorData &data, int fd) override
+	{
+		if(epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) != 0)
+		{
+			log->error("epoll_ctl failed: %s\n", strerror(errno));
+			return -1;
+		}
+		if(fd == data.fd0)
+		{
+			emptyPollDatas.push(data.pollIndexFd0);
+		}
+		else if(fd == data.fd1)
+		{
+			emptyPollDatas.push(data.pollIndexFd1);
+		}
+		return 0;
+	}
+
+	int listenPort(int port, ExecutorType execType)
+	{
+		ExecutorData *pExecData = createExecutorData();
+
+		pExecData->pExecutor = getExecutor(execType);
+		pExecData->port = port;
+
+		if(pExecData->pExecutor->up(*pExecData) != 0)
+		{
+			removeExecutorData(pExecData);
+			return -1;
+		}
+
+		return 0;
+	}
+
+protected:
+
 	int createEventFd()
 	{
 		fdEvent = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE); //check flags !!!
@@ -160,109 +365,6 @@ public:
         return 0;
     }
 
-	int addPollFd(ExecutorData &data, int fd, int events) override
-    {
-        if(emptyPollDatas.size() == 0)
-        {
-			log->error("too many connections\n");
-            return -1;
-        }
-
-		if(fd != data.fd0 && fd != data.fd1)
-		{
-			log->error("invalid argument\n");
-			return -1;
-		}
-
-        int pollIndex = emptyPollDatas.top();
-
-        epoll_event ev;
-        ev.events = events;
-        ev.data.ptr = &pollDatas[pollIndex];
-        if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
-        {
-            perror("epoll_ctl failed");
-            return -1;
-        }
-
-        pollDatas[pollIndex].fd = fd;
-		pollDatas[pollIndex].executorDataIndex = data.index;
-
-		if(fd == data.fd0)
-        {
-			data.pollIndexFd0 = pollIndex;
-        }
-		else if(fd == data.fd1)
-        {
-			data.pollIndexFd1 = pollIndex;
-        }
-
-        emptyPollDatas.pop();
-
-        return 0;
-    }
-
-	int editPollFd(ExecutorData &data, int fd, int events) override
-	{
-		int pollIndex = -1;
-		if(fd == data.fd0)
-		{
-			pollIndex = data.pollIndexFd0;
-		}
-		else if(fd == data.fd1)
-		{
-			pollIndex = data.pollIndexFd1;
-		}
-		else
-		{
-			return -1;
-		}
-
-		epoll_event ev;
-		ev.events = events;
-		ev.data.ptr = &pollDatas[pollIndex];
-		if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
-		{
-			perror("epoll_ctl failed");
-			return -1;
-		}
-
-		return 0;
-	}
-
-	int removePollFd(ExecutorData &data, int fd) override
-	{
-		if(epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) != 0)
-		{
-			log->error("epoll_ctl failed: %s\n", strerror(errno));
-			return -1;
-		}
-		if(fd == data.fd0)
-		{
-			emptyPollDatas.push(data.pollIndexFd0);
-		}
-		else if(fd == data.fd1)
-		{
-			emptyPollDatas.push(data.pollIndexFd1);
-		}
-		return 0;
-	}
-
-	/*int openServerSocket(ServerParameters &params)
-    {
-		ExecutorData *pExecData = createExecutorData();
-
-		pExecData->pExecutor = &serverExecutor;
-
-		if(pExecData->pExecutor->up(*pExecData) != 0)
-		{
-			removeExecutorData(pExecData);
-			return -1;
-		}
-
-        return 0;
-	}*/
-
 	Executor* getExecutor(ExecutorType execType) override
 	{
 		switch(execType){
@@ -309,21 +411,6 @@ public:
 		emptyExecDatas.push(execData->index);
 	}
 
-	int listenPort(int port, ExecutorType execType)
-	{
-		ExecutorData *pExecData = createExecutorData();
-
-		pExecData->pExecutor = getExecutor(execType);
-		pExecData->port = port;
-
-		if(pExecData->pExecutor->up(*pExecData) != 0)
-		{
-			removeExecutorData(pExecData);
-			return -1;
-		}
-
-		return 0;
-	}
 
 	int createRequestExecutorInternal(int fd)
 	{
@@ -341,103 +428,7 @@ public:
 		return 0;
 	}
 
-	int run()
-    {
-		runFlag.store(true);
 
-		while(epollFd > 0 && runFlag.load())
-        {
-            printStats();
-
-            int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
-            if(nEvents == -1)
-            {
-                if(errno == EINTR)
-                {
-                    continue;
-                }
-                else
-                {
-                    perror("epoll_wait failed");
-                    destroy();
-                    return -1;
-                }
-            }
-			if(!runFlag.load())
-			{
-				destroy();
-				return 0;
-			}
-
-            for(int i = 0; i < nEvents; ++i)
-            {
-                PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
-                ExecutorData &execData = execDatas[pollData->executorDataIndex];
-
-				ProcessResult result = execData.pExecutor->process(execData, pollData->fd, events[i].events);
-
-				if(result == ProcessResult::removeExecutor)
-				{
-					removeExecutorData(&execData);
-				}
-				else if(result == ProcessResult::shutdown)
-				{
-					destroy();
-					return -1;
-				}
-            }
-        }
-
-        return 0;
-    }
-
-	void stop()
-	{
-		runFlag.store(false);
-		eventfd_write(fdEvent, 1);
-	}
-
-	int enqueueClientFd(int fd)
-	{
-		if(!newFdsQueue.push(fd))
-		{
-			return -1;
-		}
-
-		eventfd_write(fdEvent, 1);
-
-		return 0;
-	}
-
-	int checkNewFd() override
-	{
-		int fd;
-		while(newFdsQueue.pop(fd))
-		{
-			if(createRequestExecutorInternal(fd) != 0)
-			{
-				close(fd);
-			}
-		}
-		return 0;
-	}
-
-	int createRequestExecutor(int fd) override
-	{
-		if(parameters->threadCount == 1)
-		{
-			return createRequestExecutorInternal(fd);
-		}
-		else
-		{
-			return srv->createRequestExecutor(fd);
-		}
-	}
-
-	int numberOfFds()
-	{
-		return MAX_EVENTS - emptyPollDatas.size();
-	}
 
 protected:
 

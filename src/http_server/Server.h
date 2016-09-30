@@ -7,9 +7,16 @@
 #include <ServerBase.h>
 #include <ExecutorType.h>
 #include <climits>
+#include <Log.h>
+#include <LogStdout.h>
 
 class Server: public ServerBase{
 public:
+
+	~Server()
+	{
+		destroy();
+	}
 
 	int run(ServerParameters &parameters)
 	{
@@ -31,12 +38,20 @@ public:
 		int i = 0;
 		for(int port : parameters.httpPorts)
 		{
-			loops[i % parameters.threadCount].listenPort(port, ExecutorType::server);
+			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::server) != 0)
+			{
+				destroy();
+				return -1;
+			}
 			++i;
 		}
 		for(int port : parameters.httpsPorts)
 		{
-			loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl);
+			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl) != 0)
+			{
+				destroy();
+				return -1;
+			}
 			++i;
 		}
 
@@ -58,28 +73,40 @@ public:
 
 		//=================================================
 
-		for(int i=0;i<parameters.threadCount - 1;++i)
-		{
-			loops[i].stop();
-		}
-
-		for(int i=0;i<parameters.threadCount - 1;++i)
-		{
-			threads[i].join();
-		}
-
-		delete[] loops;
-		loops = nullptr;
-
-		delete[] threads;
-		threads = nullptr;
+		destroy();
 
 		return 0;
 	}
 
 	void destroy()
 	{
+		if(loops != nullptr)
+		{
+			for(int i=0;i<parameters.threadCount;++i)
+			{
+				loops[i].stop();
+			}
+		}
 
+		if(threads != nullptr)
+		{
+			for(int i=0;i<parameters.threadCount - 1;++i)
+			{
+				threads[i].join();
+			}
+		}
+
+		if(loops != nullptr)
+		{
+			delete[] loops;
+			loops = nullptr;
+		}
+
+		if(threads!= nullptr)
+		{
+			delete[] threads;
+			threads = nullptr;
+		}
 	}
 
 	int createRequestExecutor(int fd)
@@ -97,17 +124,26 @@ public:
 			}
 		}
 
-		return loops[minIndex].enqueueClientFd(fd);
+		if(loops[minIndex].enqueueClientFd(fd) != 0)
+		{
+			log->error("enqueueClientFd failed\n");
+			close(fd);
+			return -1;
+		}
+
+		return 0;
 	}
+
+protected:
 
 	ServerParameters parameters;
 
-	PollLoop *loops;
-	std::thread *threads;
+	LogStdout logStdout;
+	Log *log = nullptr;
+
+	PollLoop *loops = nullptr;
+	std::thread *threads = nullptr;
 };
-
-
-
 
 #endif
 
