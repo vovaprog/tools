@@ -40,13 +40,11 @@ public:
 	{
 		this->srv = srv;
 		this->parameters = params;
+		log = srv->log;
 
 		strcpy(fileNameBuffer, params->rootFolder);
 		strcat(fileNameBuffer, "/");
 		rootFolderLength = strlen(fileNameBuffer);
-
-		logStdout.init(params->logLevel);
-		log = &logStdout;
 
 
 		signal(SIGPIPE, SIG_IGN);
@@ -80,6 +78,8 @@ public:
 		uwsgiExecutor.init(this);
 		newFdExecutor.init(this);
 
+		numOfPollFds.store(0);
+
 		return 0;
 	}
 
@@ -90,8 +90,6 @@ public:
 
 		while(epollFd > 0 && runFlag.load())
 		{
-			printStats();
-
 			int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
 			if(nEvents == -1)
 			{
@@ -137,17 +135,21 @@ public:
 	void stop()
 	{
 		runFlag.store(false);
-		eventfd_write(fdEvent, 1);
+		eventfd_write(eventFd, 1);
 	}
 
 	int enqueueClientFd(int fd)
 	{
-		if(!newFdsQueue.push(fd))
 		{
-			return -1;
+			std::lock_guard<std::mutex> lock(newFdsMutex);
+
+			if(!newFdsQueue.push(fd))
+			{
+				return -1;
+			}
 		}
 
-		eventfd_write(fdEvent, 1);
+		eventfd_write(eventFd, 1);
 
 		return 0;
 	}
@@ -177,9 +179,9 @@ public:
 		}
 	}
 
-	int numberOfFds()
+	int numberOfPollFds()
 	{
-		return MAX_EVENTS - emptyPollDatas.size();
+		return numOfPollFds.load();
 	}
 
 	int addPollFd(ExecutorData &data, int fd, int events) override
@@ -220,6 +222,7 @@ public:
 		}
 
 		emptyPollDatas.pop();
+		++numOfPollFds;
 
 		return 0;
 	}
@@ -262,10 +265,12 @@ public:
 		if(fd == data.fd0)
 		{
 			emptyPollDatas.push(data.pollIndexFd0);
+			--numOfPollFds;
 		}
 		else if(fd == data.fd1)
 		{
 			emptyPollDatas.push(data.pollIndexFd1);
+			--numOfPollFds;
 		}
 		return 0;
 	}
@@ -290,9 +295,9 @@ protected:
 
 	int createEventFd()
 	{
-		fdEvent = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE); //check flags !!!
+		eventFd = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE); //check flags !!!
 
-		if(fdEvent < 0)
+		if(eventFd < 0)
 		{
 			log->error("eventfd failed: %s\n", strerror(errno));
 			destroy();
@@ -300,10 +305,10 @@ protected:
 		}
 
 		ExecutorData *execData = createExecutorData();
-		execData->fd0 = fdEvent;
+		execData->fd0 = eventFd;
 		execData->pExecutor = &newFdExecutor;
 
-		if(addPollFd(*execData, fdEvent, EPOLLIN) != 0)
+		if(addPollFd(*execData, eventFd, EPOLLIN) != 0)
 		{
 			removeExecutorData(execData);
 			return -1;
@@ -334,23 +339,23 @@ protected:
             close(epollFd);
             epollFd = -1;
         }
-		if(fdEvent > 0)
+		if(eventFd > 0)
 		{
-			close(fdEvent);
-			fdEvent = -1;
+			close(eventFd);
+			eventFd = -1;
 		}
     }
 
 	int initDataStructs()
     {
-		MAX_CLIENTS = parameters->maxClients;
-        MAX_EVENTS = MAX_CLIENTS * 2 + 1;
+		MAX_EXECUTORS = parameters->maxClients;
+		MAX_EVENTS = MAX_EXECUTORS * 2;
 
-        execDatas = new ExecutorData[MAX_CLIENTS];
+		execDatas = new ExecutorData[MAX_EXECUTORS];
         pollDatas = new PollData[MAX_EVENTS];
         events = new epoll_event[MAX_EVENTS];
 
-        for(int i = MAX_CLIENTS - 1; i >= 0; --i)
+		for(int i = MAX_EXECUTORS - 1; i >= 0; --i)
         {
             emptyExecDatas.push(i);
         }
@@ -358,7 +363,7 @@ protected:
         {
             emptyPollDatas.push(i);
         }
-        for(int i = 0; i < MAX_CLIENTS; ++i)
+		for(int i = 0; i < MAX_EXECUTORS; ++i)
         {
 			execDatas[i].index = i;
         }
@@ -400,10 +405,12 @@ protected:
 		if(execData->pollIndexFd0 >= 0)
 		{
 			emptyPollDatas.push(execData->pollIndexFd0);
+			--numOfPollFds;
 		}
 		if(execData->pollIndexFd1 >= 0)
 		{
 			emptyPollDatas.push(execData->pollIndexFd1);
+			--numOfPollFds;
 		}
 
 		execData->down();
@@ -429,21 +436,12 @@ protected:
 	}
 
 
-
-protected:
-
-    void printStats()
-    {
-		log->debug("num of connections: %d\n", MAX_CLIENTS - (int)emptyExecDatas.size() - 1);
-    }
-
     ServerExecutor serverExecutor;
     RequestExecutor requestExecutor;
     FileExecutor fileExecutor;
     UwsgiExecutor uwsgiExecutor;
 	NewFdExecutor newFdExecutor;
 
-    LogStdout logStdout;
 
     ExecutorData *execDatas = nullptr;
     PollData *pollDatas = nullptr;
@@ -452,18 +450,21 @@ protected:
     std::stack<int, std::vector<int>> emptyExecDatas;
     std::stack<int, std::vector<int>> emptyPollDatas;
 
-    int epollFd = -1;
+	std::atomic_int numOfPollFds;
 
-    int MAX_CLIENTS = 0, MAX_EVENTS = 0;
 
-	ServerBase *srv;
+	int MAX_EXECUTORS = 0, MAX_EVENTS = 0;
+
+	ServerBase *srv = nullptr;
 
 	std::atomic_bool runFlag;
 
 	static const int MAX_NEW_FDS = 1000;
 	boost::lockfree::spsc_queue<int> newFdsQueue;
+	std::mutex newFdsMutex;
 
-	int fdEvent = -1;
+	int epollFd = -1;
+	int eventFd = -1;
 };
 
 #endif

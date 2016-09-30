@@ -28,7 +28,7 @@
 class ServerExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *srv)
+	int init(PollLoopBase *srv) override
 	{
 		this->loop = srv;
 		log = loop->log;

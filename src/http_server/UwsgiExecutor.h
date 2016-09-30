@@ -14,7 +14,7 @@ class UwsgiExecutor: public Executor
 {
 public:
 
-	int init(PollLoopBase *loop)
+	int init(PollLoopBase *loop) override
 	{
 		this->loop = loop;
 		this->log = loop->log;
@@ -87,12 +87,6 @@ protected:
 
         if(data.buffer.startRead(p, size))
         {
-            char temp[10000];
-            strncpy(temp, (char*)p, 400);
-            printf("<%s>\n", temp);
-            fflush(stdout);
-
-
             int bytesWritten = write(data.fd1, p, size);
 
             if(bytesWritten <= 0)

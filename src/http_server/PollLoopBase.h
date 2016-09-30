@@ -21,13 +21,13 @@ public:
 	virtual int createRequestExecutor(int fd) = 0;
 	virtual int checkNewFd() = 0;
 
-	Log *log;
+	Log *log = nullptr;
 
 	static const int MAX_FILE_NAME = 300;
 	char fileNameBuffer[MAX_FILE_NAME + 1];
 	int rootFolderLength = 0;
 
-	ServerParameters *parameters;
+	ServerParameters *parameters = nullptr;
 };
 
 #endif

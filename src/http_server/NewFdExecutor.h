@@ -8,19 +8,20 @@
 class NewFdExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *loop)
+	int init(PollLoopBase *loop) override
 	{
 		this->loop = loop;
 		return 0;
 	}
 
 
-	virtual int up(ExecutorData &data)
+	int up(ExecutorData &data) override
 	{
 		return 0;
 	}
 
-	virtual ProcessResult process(ExecutorData &data, int fd, int events)
+
+	ProcessResult process(ExecutorData &data, int fd, int events) override
 	{
 		loop->checkNewFd();
 		return ProcessResult::ok;

@@ -15,12 +15,17 @@ public:
 
 	~Server()
 	{
-		destroy();
+		stop();
 	}
 
-	int run(ServerParameters &parameters)
+	int start(ServerParameters &parameters)
 	{
 		this->parameters = parameters;
+
+
+		logStdout.init(parameters.logLevel);
+		log = &logStdout;
+
 
 		loops = new PollLoop[parameters.threadCount];
 
@@ -28,7 +33,7 @@ public:
 		{
 			if(loops[i].init(this, &parameters) != 0)
 			{
-				destroy();
+				stop();
 				return -1;
 			}
 		}
@@ -40,7 +45,7 @@ public:
 		{
 			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::server) != 0)
 			{
-				destroy();
+				stop();
 				return -1;
 			}
 			++i;
@@ -49,7 +54,7 @@ public:
 		{
 			if(loops[i % parameters.threadCount].listenPort(port, ExecutorType::serverSsl) != 0)
 			{
-				destroy();
+				stop();
 				return -1;
 			}
 			++i;
@@ -57,28 +62,17 @@ public:
 
 		//=================================================
 
-		if(parameters.threadCount > 1)
+		threads = new std::thread[parameters.threadCount];
+
+		for(int i=0;i<parameters.threadCount;++i)
 		{
-			threads = new std::thread[parameters.threadCount - 1];
-
-			for(int i=0;i<parameters.threadCount - 1;++i)
-			{
-				threads[i] = std::thread(&PollLoop::run, &loops[i]);
-			}
+			threads[i] = std::thread(&PollLoop::run, &loops[i]);
 		}
-
-		//=================================================
-
-		loops[parameters.threadCount - 1].run();
-
-		//=================================================
-
-		destroy();
 
 		return 0;
 	}
 
-	void destroy()
+	void stop()
 	{
 		if(loops != nullptr)
 		{
@@ -90,7 +84,7 @@ public:
 
 		if(threads != nullptr)
 		{
-			for(int i=0;i<parameters.threadCount - 1;++i)
+			for(int i=0;i<parameters.threadCount;++i)
 			{
 				threads[i].join();
 			}
@@ -109,17 +103,17 @@ public:
 		}
 	}
 
-	int createRequestExecutor(int fd)
+	int createRequestExecutor(int fd) override
 	{
-		int minFds = INT_MAX;
+		int minPollFds = INT_MAX;
 		int minIndex = 0;
 
 		for(int i=0;i<parameters.threadCount;++i)
 		{
-			int numberOfFds = loops[i].numberOfFds();
-			if(numberOfFds < minFds)
+			int numberOfFds = loops[i].numberOfPollFds();
+			if(numberOfFds < minPollFds)
 			{
-				minFds = numberOfFds;
+				minPollFds = numberOfFds;
 				minIndex = i;
 			}
 		}
@@ -132,14 +126,25 @@ public:
 		}
 
 		return 0;
+	}	
+
+	void logStats()
+	{
+		int numberOfFds = 0;
+
+		for(int i=0;i<parameters.threadCount;++i)
+		{
+			numberOfFds += loops[i].numberOfPollFds();
+		}
+
+		log->debug("open files: %d\n", numberOfFds);
 	}
 
 protected:
 
 	ServerParameters parameters;
 
-	LogStdout logStdout;
-	Log *log = nullptr;
+	LogStdout logStdout;	
 
 	PollLoop *loops = nullptr;
 	std::thread *threads = nullptr;

@@ -13,7 +13,7 @@ class FileExecutor: public Executor
 {
 public:
 
-	int init(PollLoopBase *loop)
+	int init(PollLoopBase *loop) override
 	{
 		this->loop = loop;
 		this->log = loop->log;

@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include <Executor.h>
 #include <TransferRingBuffer.h>
@@ -30,7 +31,8 @@
 class RequestExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *loop)
+
+	int init(PollLoopBase *loop) override
 	{
 		this->loop = loop;
 		this->log = loop->log;
@@ -130,7 +132,7 @@ protected:
         return 0;
     }
 
-    bool isUrlPrefix(char *url, char *prefix)
+	bool isUrlPrefix(const char *url, const char *prefix)
     {
         int i;
         for(i = 0; url[i] != 0 && prefix[i] != 0 && url[i] == prefix[i]; ++i);
@@ -204,14 +206,9 @@ protected:
 						strcat(loop->fileNameBuffer, urlBuffer);
 					}
 
-					for(int i = 0; i < ServerParameters::MAX_APPLICATIONS; ++i)
+					for(std::string &app : loop->parameters->uwsgiApplications)
 					{
-						if(loop->parameters->wsgiApplications[i][0] == 0)
-						{
-							break;
-						}
-
-						if(isUrlPrefix(urlBuffer, loop->parameters->wsgiApplications[i]))
+						if(isUrlPrefix(urlBuffer, app.c_str()))
 						{
 							return ParseRequestResult::uwsgi;
 						}
