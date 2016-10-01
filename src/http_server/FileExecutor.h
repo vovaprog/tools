@@ -92,6 +92,11 @@ protected:
         }
     }
 
+    ssize_t writeFd0(ExecutorData &data, const void *buf, size_t count) override
+    {
+        return write(data.fd0, buf, count);
+    }
+
     ProcessResult process_sendResponseSendData(ExecutorData &data)
     {
         void *p;
@@ -99,7 +104,7 @@ protected:
 
         if(data.buffer.startRead(p, size))
         {
-            int bytesWritten = write(data.fd0, p, size);
+            int bytesWritten = writeFd0(data, p, size);
 
             if(bytesWritten <= 0)
             {
@@ -114,6 +119,7 @@ protected:
 
                 if(bytesWritten == size)
                 {
+                    data.buffer.clear();
                     data.state = ExecutorData::State::sendFile;
                 }
             }
@@ -126,7 +132,7 @@ protected:
         }
     }
 
-    ProcessResult process_sendFile(ExecutorData &data)
+    virtual ProcessResult process_sendFile(ExecutorData &data)
     {
         int bytesWritten = sendfile(data.fd0, data.fd1, &data.filePosition, data.bytesToSend);
         if(bytesWritten <= 0)

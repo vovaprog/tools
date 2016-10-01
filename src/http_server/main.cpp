@@ -20,8 +20,8 @@ int main(int argc, char** argv)
 
     ServerParameters params;
     params.maxClients = 10;
-    //strcpy(params.rootFolder, "/media/vova/programs/programs/git/tools/src/http_server/build/data");
-    strcpy(params.rootFolder, "/home/vlads/programs/tools/src/http_server/build/data");
+    strcpy(params.rootFolder, "/media/vova/programs/programs/git/tools/src/http_server/build/data");
+    //strcpy(params.rootFolder, "/home/vlads/programs/tools/src/http_server/build/data");
     params.logLevel = Log::Level::debug;
 
     params.uwsgiApplications.push_back("/gallery");

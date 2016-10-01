@@ -6,8 +6,9 @@
 #include <Executor.h>
 #include <ExecutorData.h>
 #include <PollLoopBase.h>
+#include <RequestExecutor.h>
 
-class SslRequestExecutor: public Executor
+class SslRequestExecutor: public RequestExecutor
 {
 public:
 	int init(PollLoopBase *loop) override
@@ -19,6 +20,8 @@ public:
 
 	int up(ExecutorData &data) override
 	{
+        data.buffer.init(ExecutorData::REQUEST_BUFFER_SIZE);
+
 		if(sslInit(data) != 0)
 		{
 			return -1;
@@ -110,15 +113,35 @@ public:
 
 	ProcessResult process(ExecutorData &data, int fd, int events) override
 	{
-		if(data.state == ExecutorData::State::sslHandshake && fd == data.fd0)
+        if(data.state == ExecutorData::State::sslHandshake && fd == data.fd0)
 		{
 			return process_handshake(data);
 		}
+        if(data.state == ExecutorData::State::readRequest && fd == data.fd0 && events == EPOLLIN)
+        {
+            return process_readRequest(data);
+        }
 
+        log->warning("invalid process call\n");
 		return ProcessResult::ok;
 	}
 
 protected:
+
+    ssize_t readFd0(ExecutorData &data, void *buf, size_t count) override
+    {
+        return SSL_read(data.ssl, buf, count);
+
+
+        /*int ret = SSL_read(data.ssl, buf, count);
+        if(ret <= 0)
+        {
+            int err = SSL_get_error(data.ssl, ret);
+            printf("%d\n",err);
+            //SSL_ERROR_ZERO_RETURN
+        }
+        return ret;*/
+    }
 
 	ProcessResult process_handshake(ExecutorData &data)
 	{
@@ -143,9 +166,30 @@ protected:
 		}
 	}
 
+    ProcessResult process_readRequest(ExecutorData &data) override
+    {
+        if(readRequest(data) != 0)
+        {
+            return ProcessResult::removeExecutor;
+        }
 
-	PollLoopBase *loop = nullptr;
-	Log *log = nullptr;
+        ParseRequestResult parseResult = parseRequest(data);
+
+        if(parseResult == ParseRequestResult::file)
+        {
+            return setExecutor(data, loop->getExecutor(ExecutorType::sslFile));
+        }
+        else if(parseResult == ParseRequestResult::uwsgi)
+        {
+            return setExecutor(data, loop->getExecutor(ExecutorType::uwsgi));
+        }
+        else if(parseResult == ParseRequestResult::invalid)
+        {
+            return ProcessResult::removeExecutor;
+        }
+
+        return ProcessResult::ok;
+    }
 };
 
 

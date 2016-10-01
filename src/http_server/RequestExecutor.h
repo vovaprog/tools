@@ -57,7 +57,7 @@ public:
     {
         if(data.state == ExecutorData::State::readRequest && fd == data.fd0 && (events & EPOLLIN))
         {
-            return process_readRequestReadSocket(data);
+            return process_readRequest(data);
         }
 
         log->warning("invalid process call\n");
@@ -67,6 +67,11 @@ public:
 
 protected:
 
+    ssize_t readFd0(ExecutorData &data, void *buf, size_t count) override
+    {
+        return read(data.fd0, buf, count);
+    }
+
     int readRequest(ExecutorData &data)
     {
         void *p;
@@ -74,7 +79,7 @@ protected:
 
         if(data.buffer.startWrite(p, size))
         {
-            int rd = read(data.fd0, p, size);
+            int rd = readFd0(data, p, size);
 
             if(rd <= 0)
             {
@@ -237,7 +242,7 @@ protected:
         }
     }
 
-    ProcessResult process_readRequestReadSocket(ExecutorData &data)
+    virtual ProcessResult process_readRequest(ExecutorData &data)
     {
         if(readRequest(data) != 0)
         {

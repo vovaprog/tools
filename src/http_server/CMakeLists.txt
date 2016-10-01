@@ -23,6 +23,7 @@ set(SOURCE
     ExecutorType.h
     NewFdExecutor.h
     SslRequestExecutor.h
+    SslFileExecutor.h
     percent_decode.h percent_decode.c
     ../cpp/FileUtils.h ../cpp/FileUtils.cpp
     ../cpp/NetworkUtils.h ../cpp/NetworkUtils.cpp
