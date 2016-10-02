@@ -45,6 +45,8 @@ public:
         this->parameters = params;
         log = srv->log;
 
+        numOfPollFds.store(0);
+
         strcpy(fileNameBuffer, params->rootFolder);
         strcat(fileNameBuffer, "/");
         rootFolderLength = strlen(fileNameBuffer);
@@ -84,7 +86,6 @@ public:
         sslRequestExecutor.init(this);
         sslFileExecutor.init(this);
 
-        numOfPollFds.store(0);
 
         return 0;
     }
@@ -174,6 +175,7 @@ public:
 				close(fdData.fd);
             }
         }
+        log->debug("checkNewFd\n");
         return 0;
     }
 

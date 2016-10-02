@@ -52,6 +52,13 @@ protected:
                 log->error("SSL_write failed\n");
                 return ProcessResult::removeExecutor;
             }
+
+            data.bytesToSend -= bytesWritten;
+
+            if(data.bytesToSend == 0)
+            {
+                return ProcessResult::removeExecutor;
+            }
         }
         else
         {

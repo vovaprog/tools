@@ -141,14 +141,16 @@ public:
 
     void logStats()
     {
-        int numberOfFds = 0;
+        int totalNumberOfFds = 0;
 
         for(int i = 0; i < parameters.threadCount; ++i)
         {
-            numberOfFds += loops[i].numberOfPollFds();
+            int numberOfFds = loops[i].numberOfPollFds();
+            totalNumberOfFds += numberOfFds;
+            log->debug("open files. thread %d: %d\n", i, numberOfFds);
         }
 
-        log->debug("open files: %d\n", numberOfFds);
+        log->debug("open files. total:    %d\n", totalNumberOfFds);
     }
 
 protected:

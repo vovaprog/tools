@@ -1,6 +1,8 @@
 #ifndef NEW_FD_EXECUTOR_H
 #define NEW_FD_EXECUTOR_H
 
+#include <sys/eventfd.h>
+
 #include <Executor.h>
 #include <ExecutorData.h>
 #include <PollLoopBase.h>
@@ -11,6 +13,7 @@ public:
     int init(PollLoopBase *loop) override
     {
         this->loop = loop;
+        log = loop->log;
         return 0;
     }
 
@@ -23,11 +26,19 @@ public:
 
     ProcessResult process(ExecutorData &data, int fd, int events) override
     {
+        eventfd_t val;
+        if(eventfd_read(fd, &val) != 0)
+        {
+            log->error("eventfd_failed\n");
+            return ProcessResult::shutdown;
+        }
+
         loop->checkNewFd();
         return ProcessResult::ok;
     }
 
-    PollLoopBase *loop;
+    PollLoopBase *loop = nullptr;
+    Log *log = nullptr;
 };
 
 
