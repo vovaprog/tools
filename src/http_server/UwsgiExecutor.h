@@ -143,7 +143,6 @@ protected:
             {
                 if(bytesRead == 0)
                 {
-                    perror("read failed");
                     close(data.fd1);
                     data.fd1 = -1;
                     data.state = ExecutorData::State::forwardResponseOnlyWrite;
@@ -178,7 +177,7 @@ protected:
 
         if(data.buffer.startRead(p, size))
         {
-            int bytesWritten = write(data.fd0, p, size);
+            int bytesWritten = writeFd0(data, p, size);
 
             if(bytesWritten <= 0)
             {
@@ -206,7 +205,7 @@ protected:
 
         if(data.buffer.startRead(p, size))
         {
-            int bytesWritten = write(data.fd0, p, size);
+            int bytesWritten = writeFd0(data, p, size);
 
             if(bytesWritten <= 0)
             {

@@ -181,7 +181,7 @@ protected:
         }
         else if(parseResult == ParseRequestResult::uwsgi)
         {
-            return setExecutor(data, loop->getExecutor(ExecutorType::uwsgi));
+            return setExecutor(data, loop->getExecutor(ExecutorType::sslUwsgi));
         }
         else if(parseResult == ParseRequestResult::invalid)
         {

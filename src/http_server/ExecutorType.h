@@ -3,7 +3,7 @@
 
 enum class ExecutorType
 {
-    server, serverSsl, request, requestSsl, file, sslFile, uwsgi
+    server, serverSsl, request, requestSsl, file, sslFile, uwsgi, sslUwsgi
 };
 
 #endif

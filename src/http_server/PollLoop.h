@@ -27,6 +27,7 @@
 #include <SslRequestExecutor.h>
 #include <SslServerExecutor.h>
 #include <SslFileExecutor.h>
+#include <SslUwsgiExecutor.h>
 
 
 class PollLoop: public PollLoopBase
@@ -85,6 +86,7 @@ public:
         newFdExecutor.init(this);
         sslRequestExecutor.init(this);
         sslFileExecutor.init(this);
+        sslUwsgiExecutor.init(this);
 
 
         return 0;
@@ -401,6 +403,8 @@ protected:
 			return &sslServerExecutor;
         case ExecutorType::requestSsl:
             return &sslRequestExecutor;
+        case ExecutorType::sslUwsgi:
+            return &sslUwsgiExecutor;
         default:
             return nullptr;
         }
@@ -459,6 +463,7 @@ protected:
     ServerExecutor serverExecutor;
     SslServerExecutor sslServerExecutor;
     SslFileExecutor sslFileExecutor;
+    SslUwsgiExecutor sslUwsgiExecutor;
     RequestExecutor requestExecutor;
     SslRequestExecutor sslRequestExecutor;
     FileExecutor fileExecutor;

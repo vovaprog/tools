@@ -67,11 +67,6 @@ public:
 
 protected:
 
-    ssize_t readFd0(ExecutorData &data, void *buf, size_t count) override
-    {
-        return read(data.fd0, buf, count);
-    }
-
     int readRequest(ExecutorData &data)
     {
         void *p;
