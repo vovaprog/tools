@@ -236,9 +236,6 @@ protected:
             return ProcessResult::removeExecutor;
         }
     }
-
-    PollLoopBase *loop = nullptr;
-    Log *log = nullptr;
 };
 
 #endif

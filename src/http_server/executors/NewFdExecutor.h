@@ -36,9 +36,6 @@ public:
         loop->checkNewFd();
         return ProcessResult::ok;
     }
-
-    PollLoopBase *loop = nullptr;
-    Log *log = nullptr;
 };
 
 

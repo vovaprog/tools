@@ -3,9 +3,6 @@
 
 #include <vector>
 #include <stack>
-#include <unordered_map>
-#include <signal.h>
-#include <queue>
 #include <mutex>
 #include <sys/eventfd.h>
 #include <atomic>

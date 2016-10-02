@@ -23,6 +23,7 @@ public:
 	virtual int createRequestExecutor(int fd, ExecutorType execType) = 0;
     virtual int checkNewFd() = 0;
 
+
     Log *log = nullptr;
 
     static const int MAX_FILE_NAME = 300;

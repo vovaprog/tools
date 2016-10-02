@@ -16,7 +16,9 @@ public:
 
     virtual ProcessResult process(ExecutorData &data, int fd, int events) = 0;
 
+
 protected:
+
     virtual ssize_t readFd0(ExecutorData &data, void *buf, size_t count)
     {
         return read(data.fd0, buf, count);
@@ -26,6 +28,12 @@ protected:
     {
         return write(data.fd0, buf, count);
     }
+
+
+protected:
+
+    PollLoopBase *loop = nullptr;
+    Log *log = nullptr;
 };
 
 #endif

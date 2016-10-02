@@ -119,9 +119,6 @@ public:
 
         return ProcessResult::ok;
     }
-
-    PollLoopBase *loop = nullptr;
-    Log *log = nullptr;
 };
 
 #endif
