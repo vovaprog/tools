@@ -28,6 +28,7 @@ struct ExecutorData
         }
         pollIndexFd0 = -1;
         pollIndexFd1 = -1;
+
         state = State::invalid;
         pExecutor = nullptr;
 
@@ -46,11 +47,13 @@ struct ExecutorData
         return;
     }
 
-    static const int REQUEST_BUFFER_SIZE = 1000;
+    static const int REQUEST_BUFFER_SIZE = 10000;
 
     enum class State
     {
-		readRequest, sendResponse, sendFile, invalid, forwardRequest, forwardResponse, forwardResponseOnlyWrite, sslHandshake
+        invalid, readRequest, sendResponse, sendFile,
+        forwardRequest, forwardResponse, forwardResponseOnlyWrite,
+        sslHandshake
     };
 
     int index = -1;

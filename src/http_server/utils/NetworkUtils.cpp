@@ -57,13 +57,13 @@ int socketConnect(const char *address, int port)
 
     if(sock < 0)
     {
-        printf("socket failed!\r\n");
+        printf("socket failed\n");
         return -1;
     }
 
     if(connect(sock, (struct sockaddr*)&remoteaddr, sizeof(remoteaddr)) != 0)
     {
-        printf("connect failed!\r\n");
+        printf("connect failed\n");
         close(sock);
         return -1;
     }
@@ -99,14 +99,14 @@ int socketListen(int port)
 
     if(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in)) != 0)
     {
-        printf("bind failed: %s\r\n", strerror(errno));
+        printf("bind failed: %s\n", strerror(errno));
         close(sockfd);
         return -1;
     }
 
     if(listen(sockfd, 1000) != 0) //length of queue of pending connections
     {
-        printf("listen failed\r\n");
+        printf("listen failed\n");
         close(sockfd);
         return -1;
     }

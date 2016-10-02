@@ -8,21 +8,21 @@
 #include <atomic>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include <RequestExecutor.h>
-#include <FileExecutor.h>
-#include <UwsgiExecutor.h>
-#include <ServerExecutor.h>
+#include <PollLoopBase.h>
 #include <ProcessResult.h>
 #include <ServerParameters.h>
 #include <LogStdout.h>
 #include <ExecutorData.h>
 #include <PollData.h>
-#include <PollLoopBase.h>
 #include <ServerBase.h>
+
 #include <NewFdExecutor.h>
-#include <ServerBase.h>
-#include <SslRequestExecutor.h>
+#include <ServerExecutor.h>
+#include <RequestExecutor.h>
+#include <FileExecutor.h>
+#include <UwsgiExecutor.h>
 #include <SslServerExecutor.h>
+#include <SslRequestExecutor.h>
 #include <SslFileExecutor.h>
 #include <SslUwsgiExecutor.h>
 
@@ -45,7 +45,7 @@ public:
 
         numOfPollFds.store(0);
 
-        strcpy(fileNameBuffer, params->rootFolder);
+        strcpy(fileNameBuffer, params->rootFolder.c_str());
         strcat(fileNameBuffer, "/");
         rootFolderLength = strlen(fileNameBuffer);
 
@@ -457,6 +457,8 @@ protected:
     }
 
 
+protected:
+
     ServerExecutor serverExecutor;
     SslServerExecutor sslServerExecutor;
     SslFileExecutor sslFileExecutor;
@@ -482,13 +484,17 @@ protected:
 
     std::atomic_bool runFlag;
 
+
     static const int MAX_NEW_FDS = 1000;
+
 	struct NewFdData{
 		ExecutorType execType;
 		int fd;
 	};
+
 	boost::lockfree::spsc_queue<NewFdData> newFdsQueue;
     std::mutex newFdsMutex;
+
 
     int epollFd = -1;
     int eventFd = -1;
