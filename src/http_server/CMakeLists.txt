@@ -28,7 +28,8 @@ set(SOURCE
     ./utils/percent_decode.h ./utils/percent_decode.c
     ./utils/FileUtils.h ./utils/FileUtils.cpp
     ./utils/NetworkUtils.h ./utils/NetworkUtils.cpp
-    ./utils/TransferRingBuffer.h)
+    ./utils/TransferRingBuffer.h
+    ./utils/TransferBuffer.h)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2")

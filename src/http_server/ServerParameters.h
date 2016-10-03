@@ -8,7 +8,6 @@
 struct ServerParameters
 {
     int maxClients = 0;
-    Log::Level logLevel = Log::Level::info;
     std::string rootFolder;
     //char wsgiApplications[MAX_APPLICATIONS + 1][20];
     int threadCount = 1;
@@ -17,6 +16,9 @@ struct ServerParameters
     std::vector<int> httpsPorts;
 
     std::vector<std::string> uwsgiApplications;
+
+	Log::Level logLevel = Log::Level::info;
+	int logFileSize = 0;
 };
 
 #endif

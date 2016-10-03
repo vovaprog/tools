@@ -10,52 +10,53 @@
 #include <sys/mman.h>
 
 #include <ServerParameters.h>
+#include <TransferBuffer.h>
 
 class LogMmap: public Log
 {
 public:
 	int logFileSize;
-	int numberOfLogs;
+	TransferBuffer buffer;
+	char messageBuf[MSG_BUF_SIZE + 1];
 
-	int init(ServerParameters &params)
+
+	int openFile(char *fileName)
 	{
 		int fd = open("./log1.txt", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 		if(fd < 0)
 		{
-			perror("open");
+			perror("open failed");
 			return -1;
 		}
 
-		int size = 1024 * 1024;
-
-		if(ftruncate(fd, size) != 0)
+		if(ftruncate(fd, logFileSize) != 0)
 		{
-			perror("ftruncate");
+			perror("ftruncate failed");
 			return -1;
 		}
 
 		void *p = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
 		if(p == MAP_FAILED)
 		{
-			perror("mmap");
+			perror("mmap failed");
 			return -1;
 		}
 
-		int off = 0;
+		buffer.init(p, logFileSize);
 
-		while(off < size)
+		return 0;
+	}
+
+
+	int init(ServerParameters &params)
+	{
+		Log::init(params.logLevel);
+
+		logFileSize = params.logFileSize;
+
+		if(openFile("./log1.txt") != 0)
 		{
-			char buf[1000];
-			snprintf(buf, 1000, "offset: %d\n", off);
-			int l = strlen(buf);
-			if(off + l < size)
-			{
-				strcpy((char*)p + off, buf);
-			}
-			off += l;
-
-			//std::this_thread::sleep_for()
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			return -1;
 		}
 
 		return 0;
@@ -67,6 +68,16 @@ public:
 		if(level <= Level::debug)
 		{
 			std::lock_guard<std::mutex> lock(logMtx);
+
+			void *data;
+			int size;
+
+			if(buffer.startWrite(data, size))
+			{
+				if(size > MESSAGE_SIZE)
+				{
+				}
+			}
 
 			printf("[DEBUG]   ");
 			va_list args;
