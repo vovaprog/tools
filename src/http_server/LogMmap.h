@@ -40,7 +40,7 @@ public:
 			va_list args;
 			va_start(args, format);
 
-			writeLog("[DEBUG]   ", format, args);
+            writeLog("[DEBUG]  ", format, args);
 
 			va_end(args);
 		}
@@ -52,7 +52,7 @@ public:
 		{
 			va_list args;
 			va_start(args, format);
-			writeLog("[INFO]    ", format, args);
+            writeLog("[INFO]   ", format, args);
 			va_end(args);
 		}
 	}
@@ -63,7 +63,7 @@ public:
 		{
 			va_list args;
 			va_start(args, format);
-			writeLog("[WARNING] ", format, args);
+            writeLog("[WARNING]", format, args);
 			va_end(args);
 		}
 	}
@@ -72,7 +72,7 @@ public:
 	{
 		va_list args;
 		va_start(args, format);
-		writeLog("[ERROR]   ", format, args);
+        writeLog("[ERROR]  ", format, args);
 		va_end(args);
 	}
 
@@ -143,6 +143,23 @@ protected:
 		return 0;
 	}
 
+    int getCurrentTimeString(char *timeBuffer, int timeBufferSize)
+    {
+        time_t t;
+        struct tm *timeinfo;
+
+        time (&t);
+        timeinfo = localtime(&t);
+        if(strftime(timeBuffer,timeBufferSize,"%Y%m%d %H:%M:%S",timeinfo) > 0)
+        {
+            return 0;
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
 	void writeLog(const char *prefix, const char* format, va_list args)
 	{
 		std::lock_guard<std::mutex> lock(logMtx);
@@ -168,9 +185,11 @@ protected:
 			}
 		}
 
-		strcpy((char*)data, prefix);
-		int prefixLength=strlen(prefix);
+        char timeBuffer[50];
 
+        getCurrentTimeString(timeBuffer, 50);
+
+        int prefixLength = sprintf((char*)data, "%s %s   ", prefix, timeBuffer);
 		int bytesWritten = vsnprintf((char*)data + prefixLength, maxMessageSize - prefixLength, format, args);
 
 		buffer.endWrite(prefixLength + bytesWritten);

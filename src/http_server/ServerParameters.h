@@ -18,7 +18,7 @@ struct ServerParameters
     std::vector<std::string> uwsgiApplications;
 
 	Log::Level logLevel = Log::Level::info;
-	int logFileSize = 1000000;
+    int logFileSize = 1024 * 1024;
 	int logArchiveCount = 5;
 };
 

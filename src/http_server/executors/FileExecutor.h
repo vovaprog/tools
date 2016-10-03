@@ -26,7 +26,7 @@ public:
 
         if(data.bytesToSend < 0)
         {
-            log->info("fileSize failed: %s\n", strerror(errno));
+            log->error("fileSize failed: %s\n", strerror(errno));
             return -1;
         }
 
