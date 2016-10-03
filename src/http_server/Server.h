@@ -10,6 +10,7 @@
 #include <ExecutorType.h>
 #include <Log.h>
 #include <LogStdout.h>
+#include <LogMmap.h>
 #include <SslServerExecutor.h>
 
 

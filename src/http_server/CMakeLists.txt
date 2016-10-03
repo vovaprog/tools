@@ -9,7 +9,7 @@ set(SOURCE
     Server.h
     ServerParameters.h
     ProcessResult.h
-    Log.h LogStdout.h
+    Log.h LogStdout.h LogMmap.h
     PollData.h
     ExecutorData.h
     executors/UwsgiExecutor.h
