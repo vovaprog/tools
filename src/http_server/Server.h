@@ -28,8 +28,8 @@ public:
         this->parameters = parameters;
 
 
-        logStdout.init(parameters.logLevel);
-        log = &logStdout;
+		logMmap.init(parameters);
+		log = &logMmap;
 
 
 		if(parameters.httpsPorts.size()>0)
@@ -161,7 +161,7 @@ protected:
 
     ServerParameters parameters;
 
-    LogStdout logStdout;
+	LogMmap logMmap;
 
     PollLoop *loops = nullptr;
     std::thread *threads = nullptr;	

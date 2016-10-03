@@ -15,14 +15,72 @@
 class LogMmap: public Log
 {
 public:
-	int logFileSize;
-	TransferBuffer buffer;
-	char messageBuf[MSG_BUF_SIZE + 1];
-
-
-	int openFile(char *fileName)
+	~LogMmap()
 	{
-		int fd = open("./log1.txt", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+		closeFile();
+	}
+
+	int init(ServerParameters &params)
+	{
+		Log::init(params.logLevel);
+
+		logFileSize = params.logFileSize;
+		logArchiveCount = params.logArchiveCount;
+
+		rotate();
+
+		return 0;
+	}
+
+
+	void debug(const char* format, ...) override
+	{
+		if(level <= Level::debug)
+		{
+			va_list args;
+			va_start(args, format);
+
+			writeLog("[DEBUG]   ", format, args);
+
+			va_end(args);
+		}
+	}
+
+	void info(const char* format, ...) override
+	{
+		if(level <= Level::info)
+		{
+			va_list args;
+			va_start(args, format);
+			writeLog("[INFO]    ", format, args);
+			va_end(args);
+		}
+	}
+
+	void warning(const char* format, ...) override
+	{
+		if(level <= Level::warning)
+		{
+			va_list args;
+			va_start(args, format);
+			writeLog("[WARNING] ", format, args);
+			va_end(args);
+		}
+	}
+
+	void error(const char* format, ...) override
+	{
+		va_list args;
+		va_start(args, format);
+		writeLog("[ERROR]   ", format, args);
+		va_end(args);
+	}
+
+protected:
+
+	int openFile()
+	{
+		int fd = open("./log/http.log", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 		if(fd < 0)
 		{
 			perror("open failed");
@@ -35,7 +93,7 @@ public:
 			return -1;
 		}
 
-		void *p = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
+		void *p = mmap(NULL, logFileSize, PROT_WRITE, MAP_SHARED, fd, 0);
 		if(p == MAP_FAILED)
 		{
 			perror("mmap failed");
@@ -47,87 +105,87 @@ public:
 		return 0;
 	}
 
-
-	int init(ServerParameters &params)
+	void closeFile()
 	{
-		Log::init(params.logLevel);
-
-		logFileSize = params.logFileSize;
-
-		if(openFile("./log1.txt") != 0)
+		if(fd >= 0)
 		{
-			return -1;
+			buffer.init(nullptr, 0);
+			munmap(buffer.getDataPtr(), logFileSize);
+			close(fd);
+			fd = -1;
 		}
+	}
+
+	int rotate()
+	{
+		closeFile();
+
+		char fileName0[301];
+		char fileName1[301];
+		char *p0 = fileName0;
+		char *p1 = fileName1;
+
+		snprintf(p1, 300, "./log/http.log.%d", logArchiveCount);
+		remove(p1);
+
+		for(int i = logArchiveCount - 1;i>0;--i)
+		{
+			snprintf(p0, 300, "./log/http.log.%d", i);
+			rename(p0, p1);
+			std::swap(p0, p1);
+		}
+
+		strcpy(p0, "./log/http.log");
+		rename(p0, p1);
+
+		openFile();
 
 		return 0;
 	}
 
-
-	void debug(const char* format, ...) override
-	{
-		if(level <= Level::debug)
-		{
-			std::lock_guard<std::mutex> lock(logMtx);
-
-			void *data;
-			int size;
-
-			if(buffer.startWrite(data, size))
-			{
-				if(size > MESSAGE_SIZE)
-				{
-				}
-			}
-
-			printf("[DEBUG]   ");
-			va_list args;
-			va_start(args, format);
-			vprintf(format, args);
-			va_end(args);
-		}
-	}
-
-	void info(const char* format, ...) override
-	{
-		if(level <= Level::info)
-		{
-			std::lock_guard<std::mutex> lock(logMtx);
-
-			printf("[INFO]    ");
-			va_list args;
-			va_start(args, format);
-			vprintf(format, args);
-			va_end(args);
-		}
-	}
-
-	void warning(const char* format, ...) override
-	{
-		if(level <= Level::warning)
-		{
-			std::lock_guard<std::mutex> lock(logMtx);
-
-			printf("[WARNING] ");
-			va_list args;
-			va_start(args, format);
-			vprintf(format, args);
-			va_end(args);
-		}
-	}
-
-	void error(const char* format, ...) override
+	void writeLog(const char *prefix, const char* format, va_list args)
 	{
 		std::lock_guard<std::mutex> lock(logMtx);
 
-		printf("[ERROR]   ");
-		va_list args;
-		va_start(args, format);
-		vprintf(format, args);
-		va_end(args);
+		void *data;
+		int size;
+
+		bool ret = buffer.startWrite(data, size);
+
+		if(ret == false || (ret == true && size < maxMessageSize))
+		{
+			if(rotate() != 0)
+			{
+				return;
+			}
+			if(!buffer.startWrite(data,size))
+			{
+				return;
+			}
+			else if(size < maxMessageSize)
+			{
+				return;
+			}
+		}
+
+		strcpy((char*)data, prefix);
+		int prefixLength=strlen(prefix);
+
+		int bytesWritten = vsnprintf((char*)data + prefixLength, maxMessageSize - prefixLength, format, args);
+
+		buffer.endWrite(prefixLength + bytesWritten);
 	}
 
-private:
 	std::mutex logMtx;
+
+	int logFileSize = 0;
+	int logArchiveCount = 0;
+
+	TransferBuffer buffer;
+
+	const int maxMessageSize = 512;
+
+	int fd = -1;
 };
 
 

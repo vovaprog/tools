@@ -14,22 +14,9 @@ static void sig_int_handler(int i)
     runFlag.store(false);
 }
 
-int testMmap()
-{
-	LogMmap log;
-	ServerParameters params;
-	log.init(params);
-
-	return 0;
-}
-
 
 int main(int argc, char** argv)
 {
-	testMmap();
-	return 0;
-
-
     runFlag.store(true);
     signal(SIGINT, sig_int_handler);
 

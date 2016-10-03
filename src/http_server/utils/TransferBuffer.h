@@ -4,7 +4,9 @@
 class TransferBuffer
 {
 public:
-	TransferBuffer(void *buf, int size): buf(buf), bufSize(size), readHead(0), writeHead(0)
+	TransferBuffer() = default;
+
+	TransferBuffer(void *buf, int size): buf((char*)buf), bufSize(size)
     {
     }
 
@@ -19,10 +21,9 @@ public:
 
 	void init(void *buffer, int size)
 	{
-		buf = buffer;
-		bufferSize = size;
+		buf = (char*)buffer;
+		bufSize = size;
 		clear();
-		return 0;
 	}
 
     void clear()
@@ -67,6 +68,11 @@ public:
 		void *data;
 		int size;
 		return startRead(data, size);
+	}
+
+	void* getDataPtr()
+	{
+		return buf;
 	}
 
 protected:
