@@ -56,48 +56,6 @@ public:
         return 0;
     }
 
-	static int initSsl(Log *log, SSL_CTX* &globalSslCtx)
-	{
-		SSL_load_error_strings ();
-		SSL_library_init ();
-
-		globalSslCtx = SSL_CTX_new (SSLv23_method());
-		if(globalSslCtx == NULL)
-		{
-			log->error("SSL_CTX_new failed\n");
-			return -1;
-		}
-
-		//BIO* errBio = BIO_new_fd(2, BIO_NOCLOSE);
-
-		if(SSL_CTX_use_certificate_file(globalSslCtx, "server.pem", SSL_FILETYPE_PEM) <= 0)
-		{
-			log->error("SSL_CTX_use_certificate_file failed\n");
-			SSL_CTX_free(globalSslCtx);
-			return -1;
-		}
-
-		if(SSL_CTX_use_PrivateKey_file(globalSslCtx, "server.pem", SSL_FILETYPE_PEM) <= 0)
-		{
-			log->error("SSL_CTX_use_PrivateKey_file failed\n");
-			SSL_CTX_free(globalSslCtx);
-			return -1;
-		}
-
-		if(SSL_CTX_check_private_key(globalSslCtx) <= 0)
-		{
-			log->error("SSL_CTX_check_private_key\n");
-			SSL_CTX_free(globalSslCtx);
-			return -1;
-		}
-
-		log->info("ssl inited\n");
-
-		return 0;
-	}
-
-
-
     ProcessResult process(ExecutorData &data, int fd, int events) override
     {
         if(fd != data.fd0)

@@ -21,21 +21,24 @@ int main(int argc, char** argv)
     signal(SIGINT, sig_int_handler);
 
     ServerParameters params;
-    params.maxClients = 100;
+	params.maxClients = 1000;
 
-	params.rootFolder = "/media/vova/programs/programs/git/tools/src/http_server/build/data";
-	//params.rootFolder = "/home/vlads/programs/tools/src/http_server/build/data";
+	//params.rootFolder = "/media/vova/programs/programs/git/tools/src/http_server/build/data";
+	params.rootFolder = "/home/vlads/programs/tools/src/http_server/build/data";
 
-    params.logLevel = Log::Level::debug;
+	//params.logLevel = Log::Level::debug;
+	params.logLevel = Log::Level::info;
+	params.logType = Log::Type::mmap;
 
     params.uwsgiApplications.push_back("/gallery");
     params.uwsgiApplications.push_back("/calendar");
 
-    params.threadCount = 2;
+	params.threadCount = 3;
     params.httpPorts.push_back(7000);
-    params.httpPorts.push_back(11000);
+	//params.httpPorts.push_back(80);
 
 	params.httpsPorts.push_back(1443);
+	//params.httpsPorts.push_back(443);
 
 	params.executorTimeoutMilliseconds = 10000;
 
@@ -47,7 +50,7 @@ int main(int argc, char** argv)
     while(runFlag.load())
     {
         srv.logStats();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }
 
     srv.stop();

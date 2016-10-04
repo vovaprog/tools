@@ -11,7 +11,7 @@
 #include <Log.h>
 #include <LogStdout.h>
 #include <LogMmap.h>
-#include <SslServerExecutor.h>
+#include <SslUtils.h>
 
 
 class Server: public ServerBase
@@ -37,11 +37,14 @@ public:
 			log = new LogMmap();
 		}
 
-		log->init(&parameters);
+		if(log->init(&parameters) != 0)
+		{
+			return -1;
+		}
 
 		if(parameters.httpsPorts.size()>0)
 		{
-			if(SslServerExecutor::initSsl(log, globalSslCtx) != 0)
+			if(initSsl(globalSslCtx, log) != 0)
 			{
 				return -1;
 			}
@@ -123,6 +126,12 @@ public:
             threads = nullptr;
         }
 
+		if(globalSslCtx != nullptr)
+		{
+			destroySsl(globalSslCtx);
+			globalSslCtx = nullptr;
+		}
+
 		if(log != nullptr)
 		{
 			delete log;
@@ -163,10 +172,10 @@ public:
         {
             int numberOfFds = loops[i].numberOfPollFds();
             totalNumberOfFds += numberOfFds;
-            log->debug("open files. thread %d: %d\n", i, numberOfFds);
+			log->info("poll files. thread %d: %d\n", i, numberOfFds);
         }
 
-        log->debug("open files. total:    %d\n", totalNumberOfFds);
+		log->info("poll files. total:    %d\n", totalNumberOfFds);
     }
 
 

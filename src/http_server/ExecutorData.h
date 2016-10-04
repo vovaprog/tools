@@ -29,7 +29,7 @@ struct ExecutorData
         pollIndexFd0 = -1;
         pollIndexFd1 = -1;
 
-		state = State::unused;
+		state = State::invalid;
         pExecutor = nullptr;
 
         bytesToSend = 0;
@@ -51,7 +51,7 @@ struct ExecutorData
 
     enum class State
     {
-		unused, used, invalid, readRequest, sendResponse, sendFile,
+		invalid, readRequest, sendResponse, sendFile,
         forwardRequest, forwardResponse, forwardResponseOnlyWrite,
         sslHandshake
     };

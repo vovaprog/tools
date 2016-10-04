@@ -24,19 +24,19 @@ public:
     {
 		data.removeOnTimeout = true;
 
-        data.bytesToSend = fileSize(loop->fileNameBuffer);
+		data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
+
+		if(data.fd1 < 0)
+		{
+			log->error("open failed: %s\n", strerror(errno));
+			return -1;
+		}
+
+		data.bytesToSend = fileSize(data.fd1);
 
         if(data.bytesToSend < 0)
         {
             log->error("fileSize failed: %s\n", strerror(errno));
-            return -1;
-        }
-
-        data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
-
-        if(data.fd1 < 0)
-        {
-            log->error("open failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -140,7 +140,7 @@ protected:
             }
             else
             {
-                perror("sendfile failed");
+				log->error("sendfile failed: %s\n", strerror(errno));
                 return ProcessResult::removeExecutor;
             }
 

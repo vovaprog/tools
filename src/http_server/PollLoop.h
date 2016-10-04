@@ -6,6 +6,7 @@
 #include <mutex>
 #include <sys/eventfd.h>
 #include <atomic>
+#include <set>
 #include <boost/lockfree/spsc_queue.hpp>
 
 #include <PollLoopBase.h>
@@ -64,7 +65,7 @@ public:
         epollFd = epoll_create1(0);
         if(epollFd == -1)
         {
-            perror("epoll_create1 failed");
+			log->error("epoll_create1 failed: %s\n", strerror(errno));
             destroy();
             return -1;
         }
@@ -92,9 +93,9 @@ public:
 
 	void checkTimeout(int curMillis)
 	{
-		for(int i=0; i<MAX_EXECUTORS;++i)
+		for(int i : usedExecDatas)
 		{
-			if(execDatas[i].state != ExecutorData::State::unused && execDatas[i].removeOnTimeout)
+			if(execDatas[i].removeOnTimeout)
 			{
 				if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMilliseconds)
 				{
@@ -121,7 +122,7 @@ public:
                 }
                 else
                 {
-                    perror("epoll_wait failed");
+					log->error("epoll_wait failed: %s\n", strerror(errno));
                     destroy();
                     return -1;
                 }
@@ -201,7 +202,6 @@ public:
 				close(fdData.fd);
             }
         }
-        log->debug("checkNewFd\n");
         return 0;
     }
 
@@ -243,7 +243,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
         {
-            perror("epoll_ctl failed");
+			log->error("epoll_ctl failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -286,7 +286,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
         {
-            perror("epoll_ctl failed");
+			log->error("epoll_ctl failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -406,6 +406,7 @@ protected:
         {
             execDatas[i].index = i;
         }
+		usedExecDatas.clear();
         return 0;
     }
 
@@ -444,7 +445,7 @@ protected:
 
         int execIndex = emptyExecDatas.top();
         emptyExecDatas.pop();
-		execDatas[execIndex].state = ExecutorData::State::used;
+		usedExecDatas.insert(execIndex);
 
         return &execDatas[execIndex];
     }
@@ -465,6 +466,7 @@ protected:
         execData->down();
 
         emptyExecDatas.push(execData->index);
+		usedExecDatas.erase(execData->index);
     }
 
 
@@ -503,7 +505,8 @@ protected:
     epoll_event *events = nullptr;
 
     std::stack<int, std::vector<int>> emptyExecDatas;
-    std::stack<int, std::vector<int>> emptyPollDatas;
+	std::stack<int, std::vector<int>> emptyPollDatas;
+	std::set<int> usedExecDatas;
 
     std::atomic_int numOfPollFds;
 

@@ -25,14 +25,17 @@ public:
 
 	int init(ServerParameters *params) override
 	{
-		LogBase::init(params);
+		int ret = LogBase::init(params);
+
+		if(ret != 0)
+		{
+			return ret;
+		}
 
 		logFileSize = params->logFileSize;
 		logArchiveCount = params->logArchiveCount;
 
-		rotate();
-
-		return 0;
+		return rotate();
 	}
 
 
@@ -98,9 +101,7 @@ protected:
 		strcpy(p0, "./log/http.log");
 		rename(p0, p1);
 
-		openFile();
-
-		return 0;
+		return openFile();
 	}
 
 	void writeLog(const char *prefix, const char* format, va_list args) override
