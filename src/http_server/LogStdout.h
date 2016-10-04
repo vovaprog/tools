@@ -4,62 +4,26 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <Log.h>
+#include <LogBase.h>
 #include <mutex>
+#include <TimeUtils.h>
 
-class LogStdout: public Log
+class LogStdout: public LogBase
 {
-    void debug(const char* format, ...) override
-    {
-        if(level <= Level::debug)
-        {
-            std::lock_guard<std::mutex> lock(logMtx);
+protected:
 
-            printf("[DEBUG]   ");
-            va_list args;
-            va_start(args, format);
-            vprintf(format, args);
-            va_end(args);
-        }
-    }
+	void writeLog(const char *prefix, const char* format, va_list args) override
+	{
+		std::lock_guard<std::mutex> lock(logMtx);
 
-    void info(const char* format, ...) override
-    {
-        if(level <= Level::info)
-        {
-            std::lock_guard<std::mutex> lock(logMtx);
+		char timeBuffer[50];
 
-            printf("[INFO]    ");
-            va_list args;
-            va_start(args, format);
-            vprintf(format, args);
-            va_end(args);
-        }
-    }
+		getCurrentTimeString(timeBuffer, 50);
 
-    void warning(const char* format, ...) override
-    {
-        if(level <= Level::warning)
-        {
-            std::lock_guard<std::mutex> lock(logMtx);
+		printf("%s %s   ", prefix, timeBuffer);
+		vprintf(format, args);
+	}
 
-            printf("[WARNING] ");
-            va_list args;
-            va_start(args, format);
-            vprintf(format, args);
-            va_end(args);
-        }
-    }
-
-    void error(const char* format, ...) override
-    {
-        std::lock_guard<std::mutex> lock(logMtx);
-
-        printf("[ERROR]   ");
-        va_list args;
-        va_start(args, format);
-        vprintf(format, args);
-        va_end(args);
-    }
 
 private:
     std::mutex logMtx;

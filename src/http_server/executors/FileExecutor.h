@@ -22,6 +22,8 @@ public:
 
     int up(ExecutorData &data) override
     {
+		data.removeOnTimeout = true;
+
         data.bytesToSend = fileSize(loop->fileNameBuffer);
 
         if(data.bytesToSend < 0)

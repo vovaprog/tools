@@ -40,6 +40,8 @@ public:
 
     int up(ExecutorData &data) override
     {
+		data.removeOnTimeout = false;
+
         data.fd0 = socketListen(data.port);
         if(data.fd0 < 0)
         {

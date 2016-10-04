@@ -23,8 +23,8 @@ int main(int argc, char** argv)
     ServerParameters params;
     params.maxClients = 100;
 
-    params.rootFolder = "/media/vova/programs/programs/git/tools/src/http_server/build/data";
-    //params.rootFolder = "/home/vlads/programs/tools/src/http_server/build/data";
+	params.rootFolder = "/media/vova/programs/programs/git/tools/src/http_server/build/data";
+	//params.rootFolder = "/home/vlads/programs/tools/src/http_server/build/data";
 
     params.logLevel = Log::Level::debug;
 
@@ -36,6 +36,8 @@ int main(int argc, char** argv)
     params.httpPorts.push_back(11000);
 
 	params.httpsPorts.push_back(1443);
+
+	params.executorTimeoutMilliseconds = 10000;
 
     if(srv.start(params) != 0)
     {

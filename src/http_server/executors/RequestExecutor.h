@@ -41,6 +41,8 @@ public:
 
     int up(ExecutorData &data) override
     {
+		data.removeOnTimeout = true;
+
         data.buffer.init(ExecutorData::REQUEST_BUFFER_SIZE);
 
         if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)

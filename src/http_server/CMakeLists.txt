@@ -9,7 +9,7 @@ set(SOURCE
     Server.h
     ServerParameters.h
     ProcessResult.h
-    Log.h LogStdout.h LogMmap.h
+    Log.h LogStdout.h LogMmap.h LogBase.h
     PollData.h
     ExecutorData.h
     executors/UwsgiExecutor.h
@@ -29,7 +29,8 @@ set(SOURCE
     ./utils/FileUtils.h ./utils/FileUtils.cpp
     ./utils/NetworkUtils.h ./utils/NetworkUtils.cpp
     ./utils/TransferRingBuffer.h
-    ./utils/TransferBuffer.h)
+    ./utils/TransferBuffer.h
+    ./utils/TimeUtils.h ./utils/TimeUtils.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2")

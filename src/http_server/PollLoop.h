@@ -15,6 +15,7 @@
 #include <ExecutorData.h>
 #include <PollData.h>
 #include <ServerBase.h>
+#include <TimeUtils.h>
 
 #include <NewFdExecutor.h>
 #include <ServerExecutor.h>
@@ -89,6 +90,21 @@ public:
         return 0;
     }
 
+	void checkTimeout(int curMillis)
+	{
+		for(int i=0; i<MAX_EXECUTORS;++i)
+		{
+			if(execDatas[i].state != ExecutorData::State::unused && execDatas[i].removeOnTimeout)
+			{
+				if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMilliseconds)
+				{
+					removeExecutorData(&execDatas[i]);
+				}
+			}
+		}
+
+		lastCheckTimeoutMillis = curMillis;
+	}
 
     int run()
     {
@@ -115,6 +131,8 @@ public:
                 break;
             }
 
+			long long int curMillis = getMilliseconds();
+
             for(int i = 0; i < nEvents; ++i)
             {
                 PollData *pollData = static_cast<PollData*>(events[i].data.ptr);
@@ -131,7 +149,16 @@ public:
                     destroy();
                     return -1;
                 }
+				else
+				{
+					execData.lastProcessTime = curMillis;
+				}
             }
+
+			if(curMillis - lastCheckTimeoutMillis >= parameters->executorTimeoutMilliseconds)
+			{
+				checkTimeout(curMillis);
+			}
         }
 
         destroy();
@@ -417,6 +444,7 @@ protected:
 
         int execIndex = emptyExecDatas.top();
         emptyExecDatas.pop();
+		execDatas[execIndex].state = ExecutorData::State::used;
 
         return &execDatas[execIndex];
     }
@@ -498,6 +526,8 @@ protected:
 
     int epollFd = -1;
     int eventFd = -1;
+
+	long long int lastCheckTimeoutMillis = 0;
 };
 
 #endif

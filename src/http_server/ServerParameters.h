@@ -9,7 +9,6 @@ struct ServerParameters
 {
     int maxClients = 0;
     std::string rootFolder;
-    //char wsgiApplications[MAX_APPLICATIONS + 1][20];
     int threadCount = 1;
 
     std::vector<int> httpPorts;
@@ -18,8 +17,11 @@ struct ServerParameters
     std::vector<std::string> uwsgiApplications;
 
 	Log::Level logLevel = Log::Level::info;
+	Log::Type logType = Log::Type::stdout;
     int logFileSize = 1024 * 1024;
 	int logArchiveCount = 5;
+
+	int executorTimeoutMilliseconds = 10000; //timeout in milliseconds
 };
 
 #endif

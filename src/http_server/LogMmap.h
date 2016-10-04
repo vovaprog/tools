@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <Log.h>
+#include <LogBase.h>
 #include <mutex>
 #include <unistd.h>
 #include <sys/types.h>
@@ -11,70 +12,29 @@
 
 #include <ServerParameters.h>
 #include <TransferBuffer.h>
+#include <TimeUtils.h>
 
-class LogMmap: public Log
+class LogMmap: public LogBase
 {
 public:
-	~LogMmap()
+	~LogMmap() override
 	{
 		closeFile();
 	}
 
-	int init(ServerParameters &params)
-	{
-		Log::init(params.logLevel);
 
-		logFileSize = params.logFileSize;
-		logArchiveCount = params.logArchiveCount;
+	int init(ServerParameters *params) override
+	{
+		LogBase::init(params);
+
+		logFileSize = params->logFileSize;
+		logArchiveCount = params->logArchiveCount;
 
 		rotate();
 
 		return 0;
 	}
 
-
-	void debug(const char* format, ...) override
-	{
-		if(level <= Level::debug)
-		{
-			va_list args;
-			va_start(args, format);
-
-            writeLog("[DEBUG]  ", format, args);
-
-			va_end(args);
-		}
-	}
-
-	void info(const char* format, ...) override
-	{
-		if(level <= Level::info)
-		{
-			va_list args;
-			va_start(args, format);
-            writeLog("[INFO]   ", format, args);
-			va_end(args);
-		}
-	}
-
-	void warning(const char* format, ...) override
-	{
-		if(level <= Level::warning)
-		{
-			va_list args;
-			va_start(args, format);
-            writeLog("[WARNING]", format, args);
-			va_end(args);
-		}
-	}
-
-	void error(const char* format, ...) override
-	{
-		va_list args;
-		va_start(args, format);
-        writeLog("[ERROR]  ", format, args);
-		va_end(args);
-	}
 
 protected:
 
@@ -143,24 +103,7 @@ protected:
 		return 0;
 	}
 
-    int getCurrentTimeString(char *timeBuffer, int timeBufferSize)
-    {
-        time_t t;
-        struct tm *timeinfo;
-
-        time (&t);
-        timeinfo = localtime(&t);
-        if(strftime(timeBuffer,timeBufferSize,"%Y%m%d %H:%M:%S",timeinfo) > 0)
-        {
-            return 0;
-        }
-        else
-        {
-            return -1;
-        }
-    }
-
-	void writeLog(const char *prefix, const char* format, va_list args)
+	void writeLog(const char *prefix, const char* format, va_list args) override
 	{
 		std::lock_guard<std::mutex> lock(logMtx);
 
@@ -194,6 +137,9 @@ protected:
 
 		buffer.endWrite(prefixLength + bytesWritten);
 	}
+
+
+protected:
 
 	std::mutex logMtx;
 

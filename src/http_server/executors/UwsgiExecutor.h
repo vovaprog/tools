@@ -23,6 +23,8 @@ public:
 
     int up(ExecutorData &data) override
     {
+		data.removeOnTimeout = true;
+
         data.fd1 = socketConnect("127.0.0.1", 7070);
 
         if(data.fd1 < 0)

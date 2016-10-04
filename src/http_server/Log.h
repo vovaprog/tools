@@ -1,6 +1,8 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
+class ServerParameters;
+
 class Log
 {
 public:
@@ -9,10 +11,14 @@ public:
         debug = 1, info = 2, warning = 3, error = 4
     };
 
-    virtual void init(Level level)
-    {
-        this->level = level;
-    }
+	enum class Type
+	{
+		stdout, mmap
+	};
+
+	virtual ~Log() { }
+
+	virtual int init(ServerParameters *params) = 0;
 
     virtual void debug(const char* format, ...) = 0;
     virtual void info(const char* format, ...) = 0;
@@ -20,6 +26,7 @@ public:
     virtual void error(const char* format, ...) = 0;
 
 protected:
+
     Level level = Level::info;
 };
 

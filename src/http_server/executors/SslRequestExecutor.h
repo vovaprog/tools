@@ -20,6 +20,8 @@ public:
 
 	int up(ExecutorData &data) override
 	{
+		data.removeOnTimeout = true;
+
         data.buffer.init(ExecutorData::REQUEST_BUFFER_SIZE);
 
 		if(sslInit(data) != 0)

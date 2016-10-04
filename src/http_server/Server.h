@@ -28,9 +28,16 @@ public:
         this->parameters = parameters;
 
 
-		logMmap.init(parameters);
-		log = &logMmap;
+		if(parameters.logType == Log::Type::stdout)
+		{
+			log = new LogStdout();
+		}
+		else
+		{
+			log = new LogMmap();
+		}
 
+		log->init(&parameters);
 
 		if(parameters.httpsPorts.size()>0)
 		{
@@ -115,6 +122,12 @@ public:
             delete[] threads;
             threads = nullptr;
         }
+
+		if(log != nullptr)
+		{
+			delete log;
+			log = nullptr;
+		}
     }
 
 	int createRequestExecutor(int fd, ExecutorType execType) override
@@ -160,8 +173,6 @@ public:
 protected:
 
     ServerParameters parameters;
-
-	LogMmap logMmap;
 
     PollLoop *loops = nullptr;
     std::thread *threads = nullptr;	
