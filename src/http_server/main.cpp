@@ -33,7 +33,7 @@ int main(int argc, char** argv)
     params.uwsgiApplications.push_back("/gallery");
     params.uwsgiApplications.push_back("/calendar");
 
-	params.threadCount = 3;
+	params.threadCount = 4;
     params.httpPorts.push_back(7000);
 	//params.httpPorts.push_back(80);
 

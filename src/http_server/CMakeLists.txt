@@ -33,8 +33,8 @@ set(SOURCE
     ./utils/TimeUtils.h ./utils/TimeUtils.cpp
     ./utils/SslUtils.h ./utils/SslUtils.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2 -pthread")
 
 add_executable(http_server ${SOURCE})
 
