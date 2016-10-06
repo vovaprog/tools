@@ -7,6 +7,8 @@
 
 struct ServerParameters
 {
+    int load(const char *fileName);
+
     int maxClients = 0;
     std::string rootFolder;
     int threadCount = 1;

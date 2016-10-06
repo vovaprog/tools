@@ -2,12 +2,12 @@ project (http_server)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-include_directories("." "./utils" "./executors")
+include_directories("." "./utils" "./executors" "./tinyxml2")
 
 set(SOURCE 
     main.cpp
     Server.h
-    ServerParameters.h
+    ServerParameters.h ServerParameters.cpp
     ProcessResult.h
     Log.h LogStdout.h LogMmap.h LogBase.h
     PollData.h
@@ -31,7 +31,8 @@ set(SOURCE
     ./utils/TransferRingBuffer.h
     ./utils/TransferBuffer.h
     ./utils/TimeUtils.h ./utils/TimeUtils.cpp
-    ./utils/SslUtils.h ./utils/SslUtils.cpp)
+    ./utils/SslUtils.h ./utils/SslUtils.cpp
+    ./tinyxml2/tinyxml2.h ./tinyxml2/tinyxml2.cpp)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2 -pthread")

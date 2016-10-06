@@ -21,6 +21,16 @@ int main(int argc, char** argv)
     signal(SIGINT, sig_int_handler);
 
     ServerParameters params;
+    if(params.load("./config.xml") != 0)
+    {
+        return -1;
+    }
+
+    printf("maxClients: %d\n", params.maxClients);
+
+    return 0;
+
+    /*
     params.maxClients = 1000;
 
     //params.rootFolder = "/media/vova/programs/programs/git/tools/src/http_server/build/data";
@@ -41,7 +51,8 @@ int main(int argc, char** argv)
     //params.httpsPorts.push_back(443);
 
     params.executorTimeoutMilliseconds = 10000;
-
+    */
+    
     if(srv.start(params) != 0)
     {
         return -1;
