@@ -31,16 +31,16 @@
 class SslServerExecutor: public Executor
 {
 public:
-	int init(PollLoopBase *loop) override
+    int init(PollLoopBase *loop) override
     {
-		this->loop = loop;
+        this->loop = loop;
         log = loop->log;
         return 0;
     }
 
     int up(ExecutorData &data) override
     {
-		data.removeOnTimeout = false;
+        data.removeOnTimeout = false;
 
         data.fd0 = socketListen(data.port);
         if(data.fd0 < 0)
@@ -75,7 +75,7 @@ public:
             return ProcessResult::shutdown;
         }
 
-		loop->createRequestExecutor(clientSockFd, ExecutorType::requestSsl);
+        loop->createRequestExecutor(clientSockFd, ExecutorType::requestSsl);
 
         return ProcessResult::ok;
     }

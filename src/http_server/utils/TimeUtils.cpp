@@ -3,25 +3,25 @@
 
 long long int getMilliseconds()
 {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(
-	           std::chrono::system_clock::now().time_since_epoch()
-	       ).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch()
+           ).count();
 }
 
 int getCurrentTimeString(char *timeBuffer, int timeBufferSize)
 {
-	time_t t;
-	struct tm *timeinfo;
+    time_t t;
+    struct tm *timeinfo;
 
-	time (&t);
-	timeinfo = localtime(&t);
-	if(strftime(timeBuffer,timeBufferSize,"%Y%m%d %H:%M:%S",timeinfo) > 0)
-	{
-		return 0;
-	}
-	else
-	{
-		return -1;
-	}
+    time(&t);
+    timeinfo = localtime(&t);
+    if(strftime(timeBuffer, timeBufferSize, "%Y%m%d %H:%M:%S", timeinfo) > 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
 }
 

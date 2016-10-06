@@ -16,12 +16,12 @@ struct ServerParameters
 
     std::vector<std::string> uwsgiApplications;
 
-	Log::Level logLevel = Log::Level::info;
-	Log::Type logType = Log::Type::stdout;
+    Log::Level logLevel = Log::Level::info;
+    Log::Type logType = Log::Type::stdout;
     int logFileSize = 1024 * 1024;
-	int logArchiveCount = 5;
+    int logArchiveCount = 5;
 
-	int executorTimeoutMilliseconds = 10000; //timeout in milliseconds
+    int executorTimeoutMilliseconds = 10000; //timeout in milliseconds
 };
 
 #endif

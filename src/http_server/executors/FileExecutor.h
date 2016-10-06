@@ -22,17 +22,17 @@ public:
 
     int up(ExecutorData &data) override
     {
-		data.removeOnTimeout = true;
+        data.removeOnTimeout = true;
 
-		data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
+        data.fd1 = open(loop->fileNameBuffer, O_NONBLOCK | O_RDONLY);
 
-		if(data.fd1 < 0)
-		{
-			log->error("open failed: %s\n", strerror(errno));
-			return -1;
-		}
+        if(data.fd1 < 0)
+        {
+            log->error("open failed: %s\n", strerror(errno));
+            return -1;
+        }
 
-		data.bytesToSend = fileSize(data.fd1);
+        data.bytesToSend = fileSize(data.fd1);
 
         if(data.bytesToSend < 0)
         {
@@ -140,7 +140,7 @@ protected:
             }
             else
             {
-				log->error("sendfile failed: %s\n", strerror(errno));
+                log->error("sendfile failed: %s\n", strerror(errno));
                 return ProcessResult::removeExecutor;
             }
 

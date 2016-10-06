@@ -11,14 +11,14 @@ public:
         debug = 1, info = 2, warning = 3, error = 4
     };
 
-	enum class Type
-	{
-		stdout, mmap
-	};
+    enum class Type
+    {
+        stdout, mmap
+    };
 
-	virtual ~Log() { }
+    virtual ~Log() { }
 
-	virtual int init(ServerParameters *params) = 0;
+    virtual int init(ServerParameters *params) = 0;
 
     virtual void debug(const char* format, ...) = 0;
     virtual void info(const char* format, ...) = 0;

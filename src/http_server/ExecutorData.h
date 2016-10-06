@@ -29,7 +29,7 @@ struct ExecutorData
         pollIndexFd0 = -1;
         pollIndexFd1 = -1;
 
-		state = State::invalid;
+        state = State::invalid;
         pExecutor = nullptr;
 
         bytesToSend = 0;
@@ -37,12 +37,12 @@ struct ExecutorData
 
         buffer.clear();
 
-		if(ssl != nullptr)
-		{
-			SSL_shutdown(ssl);
-			SSL_free(ssl);
-			ssl = nullptr;
-		}
+        if(ssl != nullptr)
+        {
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            ssl = nullptr;
+        }
 
         return;
     }
@@ -51,7 +51,7 @@ struct ExecutorData
 
     enum class State
     {
-		invalid, readRequest, sendResponse, sendFile,
+        invalid, readRequest, sendResponse, sendFile,
         forwardRequest, forwardResponse, forwardResponseOnlyWrite,
         sslHandshake
     };
@@ -74,10 +74,10 @@ struct ExecutorData
 
     int port = 0;
 
-	SSL *ssl = nullptr;
+    SSL *ssl = nullptr;
 
-	long long int lastProcessTime = 0;
-	bool removeOnTimeout = true;
+    long long int lastProcessTime = 0;
+    bool removeOnTimeout = true;
 };
 
 #endif

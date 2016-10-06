@@ -4,27 +4,27 @@
 class TransferBuffer
 {
 public:
-	TransferBuffer() = default;
+    TransferBuffer() = default;
 
-	TransferBuffer(void *buf, int size): buf((char*)buf), bufSize(size)
+    TransferBuffer(void *buf, int size): buf((char*)buf), bufSize(size)
     {
     }
 
-	~TransferBuffer()
+    ~TransferBuffer()
     {
     }
 
-	TransferBuffer(const TransferBuffer &tm) = delete;
-	TransferBuffer(TransferBuffer &&tm) = delete;
-	TransferBuffer& operator=(const TransferBuffer &tm) = delete;
-	TransferBuffer& operator=(TransferBuffer && tm) = delete;
+    TransferBuffer(const TransferBuffer &tm) = delete;
+    TransferBuffer(TransferBuffer &&tm) = delete;
+    TransferBuffer& operator=(const TransferBuffer &tm) = delete;
+    TransferBuffer& operator=(TransferBuffer && tm) = delete;
 
-	void init(void *buffer, int size)
-	{
-		buf = (char*)buffer;
-		bufSize = size;
-		clear();
-	}
+    void init(void *buffer, int size)
+    {
+        buf = (char*)buffer;
+        bufSize = size;
+        clear();
+    }
 
     void clear()
     {
@@ -34,15 +34,15 @@ public:
 
     bool startWrite(void* &data, int &size)
     {
-		if(writeHead >= bufSize)
-		{
-			return false;
-		}
+        if(writeHead >= bufSize)
+        {
+            return false;
+        }
 
-		data = buf + writeHead;
-		size = bufSize - writeHead;
+        data = buf + writeHead;
+        size = bufSize - writeHead;
 
-		return true;
+        return true;
     }
 
     void endWrite(int size)
@@ -53,9 +53,9 @@ public:
     bool startRead(void* &data, int &size)
     {
         data = buf + readHead;
-		size = writeHead - readHead;
+        size = writeHead - readHead;
 
-		return (size > 0);
+        return (size > 0);
     }
 
     void endRead(int size)
@@ -63,17 +63,17 @@ public:
         readHead += size;
     }
 
-	bool readAvailable()
-	{
-		void *data;
-		int size;
-		return startRead(data, size);
-	}
+    bool readAvailable()
+    {
+        void *data;
+        int size;
+        return startRead(data, size);
+    }
 
-	void* getDataPtr()
-	{
-		return buf;
-	}
+    void* getDataPtr()
+    {
+        return buf;
+    }
 
 protected:
     char *buf = nullptr;

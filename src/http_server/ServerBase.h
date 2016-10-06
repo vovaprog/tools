@@ -10,10 +10,10 @@ class ServerBase
 {
 public:
 
-	virtual int createRequestExecutor(int fd, ExecutorType execType) = 0;
+    virtual int createRequestExecutor(int fd, ExecutorType execType) = 0;
 
     Log *log = nullptr;
-	SSL_CTX* globalSslCtx = nullptr;
+    SSL_CTX* globalSslCtx = nullptr;
 };
 
 #endif

@@ -12,17 +12,17 @@ class LogStdout: public LogBase
 {
 protected:
 
-	void writeLog(const char *prefix, const char* format, va_list args) override
-	{
-		std::lock_guard<std::mutex> lock(logMtx);
+    void writeLog(const char *prefix, const char* format, va_list args) override
+    {
+        std::lock_guard<std::mutex> lock(logMtx);
 
-		char timeBuffer[50];
+        char timeBuffer[50];
 
-		getCurrentTimeString(timeBuffer, 50);
+        getCurrentTimeString(timeBuffer, 50);
 
-		printf("%s %s   ", prefix, timeBuffer);
-		vprintf(format, args);
-	}
+        printf("%s %s   ", prefix, timeBuffer);
+        vprintf(format, args);
+    }
 
 
 private:

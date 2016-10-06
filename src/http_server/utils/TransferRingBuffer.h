@@ -112,12 +112,12 @@ public:
         }
     }
 
-	bool readAvailable()
-	{
-		void *data;
-		int size;
-		return startRead(data, size);
-	}
+    bool readAvailable()
+    {
+        void *data;
+        int size;
+        return startRead(data, size);
+    }
 
 #ifdef TRANSFER_RING_BUFFER_DEBUG
     void printInfo()

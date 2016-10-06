@@ -28,27 +28,27 @@ public:
         this->parameters = parameters;
 
 
-		if(parameters.logType == Log::Type::stdout)
-		{
-			log = new LogStdout();
-		}
-		else
-		{
-			log = new LogMmap();
-		}
+        if(parameters.logType == Log::Type::stdout)
+        {
+            log = new LogStdout();
+        }
+        else
+        {
+            log = new LogMmap();
+        }
 
-		if(log->init(&parameters) != 0)
-		{
-			return -1;
-		}
+        if(log->init(&parameters) != 0)
+        {
+            return -1;
+        }
 
-		if(parameters.httpsPorts.size()>0)
-		{
-			if(initSsl(globalSslCtx, log) != 0)
-			{
-				return -1;
-			}
-		}
+        if(parameters.httpsPorts.size() > 0)
+        {
+            if(initSsl(globalSslCtx, log) != 0)
+            {
+                return -1;
+            }
+        }
 
 
         loops = new PollLoop[parameters.threadCount];
@@ -126,20 +126,20 @@ public:
             threads = nullptr;
         }
 
-		if(globalSslCtx != nullptr)
-		{
-			destroySsl(globalSslCtx);
-			globalSslCtx = nullptr;
-		}
+        if(globalSslCtx != nullptr)
+        {
+            destroySsl(globalSslCtx);
+            globalSslCtx = nullptr;
+        }
 
-		if(log != nullptr)
-		{
-			delete log;
-			log = nullptr;
-		}
+        if(log != nullptr)
+        {
+            delete log;
+            log = nullptr;
+        }
     }
 
-	int createRequestExecutor(int fd, ExecutorType execType) override
+    int createRequestExecutor(int fd, ExecutorType execType) override
     {
         int minPollFds = INT_MAX;
         int minIndex = 0;
@@ -154,7 +154,7 @@ public:
             }
         }
 
-		if(loops[minIndex].enqueueClientFd(fd, execType) != 0)
+        if(loops[minIndex].enqueueClientFd(fd, execType) != 0)
         {
             log->error("enqueueClientFd failed\n");
             close(fd);
@@ -172,10 +172,10 @@ public:
         {
             int numberOfFds = loops[i].numberOfPollFds();
             totalNumberOfFds += numberOfFds;
-			log->info("poll files. thread %d: %d\n", i, numberOfFds);
+            log->info("poll files. thread %d: %d\n", i, numberOfFds);
         }
 
-		log->info("poll files. total:    %d\n", totalNumberOfFds);
+        log->info("poll files. total:    %d\n", totalNumberOfFds);
     }
 
 
@@ -184,7 +184,7 @@ protected:
     ServerParameters parameters;
 
     PollLoop *loops = nullptr;
-    std::thread *threads = nullptr;	
+    std::thread *threads = nullptr;
 };
 
 #endif

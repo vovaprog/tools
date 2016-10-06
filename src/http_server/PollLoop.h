@@ -65,7 +65,7 @@ public:
         epollFd = epoll_create1(0);
         if(epollFd == -1)
         {
-			log->error("epoll_create1 failed: %s\n", strerror(errno));
+            log->error("epoll_create1 failed: %s\n", strerror(errno));
             destroy();
             return -1;
         }
@@ -78,7 +78,7 @@ public:
         }
 
         serverExecutor.init(this);
-		sslServerExecutor.init(this);
+        sslServerExecutor.init(this);
         requestExecutor.init(this);
         fileExecutor.init(this);
         uwsgiExecutor.init(this);
@@ -91,21 +91,21 @@ public:
         return 0;
     }
 
-	void checkTimeout(int curMillis)
-	{
-		for(int i : usedExecDatas)
-		{
-			if(execDatas[i].removeOnTimeout)
-			{
-				if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMilliseconds)
-				{
-					removeExecutorData(&execDatas[i]);
-				}
-			}
-		}
+    void checkTimeout(int curMillis)
+    {
+        for(int i : usedExecDatas)
+        {
+            if(execDatas[i].removeOnTimeout)
+            {
+                if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMilliseconds)
+                {
+                    removeExecutorData(&execDatas[i]);
+                }
+            }
+        }
 
-		lastCheckTimeoutMillis = curMillis;
-	}
+        lastCheckTimeoutMillis = curMillis;
+    }
 
     int run()
     {
@@ -122,7 +122,7 @@ public:
                 }
                 else
                 {
-					log->error("epoll_wait failed: %s\n", strerror(errno));
+                    log->error("epoll_wait failed: %s\n", strerror(errno));
                     destroy();
                     return -1;
                 }
@@ -132,7 +132,7 @@ public:
                 break;
             }
 
-			long long int curMillis = getMilliseconds();
+            long long int curMillis = getMilliseconds();
 
             for(int i = 0; i < nEvents; ++i)
             {
@@ -150,16 +150,16 @@ public:
                     destroy();
                     return -1;
                 }
-				else
-				{
-					execData.lastProcessTime = curMillis;
-				}
+                else
+                {
+                    execData.lastProcessTime = curMillis;
+                }
             }
 
-			if(curMillis - lastCheckTimeoutMillis >= parameters->executorTimeoutMilliseconds)
-			{
-				checkTimeout(curMillis);
-			}
+            if(curMillis - lastCheckTimeoutMillis >= parameters->executorTimeoutMilliseconds)
+            {
+                checkTimeout(curMillis);
+            }
         }
 
         destroy();
@@ -172,16 +172,16 @@ public:
         eventfd_write(eventFd, 1);
     }
 
-	int enqueueClientFd(int fd, ExecutorType execType)
+    int enqueueClientFd(int fd, ExecutorType execType)
     {
         {
             std::lock_guard<std::mutex> lock(newFdsMutex);
 
-			NewFdData fdData;
-			fdData.fd = fd;
-			fdData.execType = execType;
+            NewFdData fdData;
+            fdData.fd = fd;
+            fdData.execType = execType;
 
-			if(!newFdsQueue.push(fdData))
+            if(!newFdsQueue.push(fdData))
             {
                 return -1;
             }
@@ -194,26 +194,26 @@ public:
 
     int checkNewFd() override
     {
-		NewFdData fdData;
-		while(newFdsQueue.pop(fdData))
+        NewFdData fdData;
+        while(newFdsQueue.pop(fdData))
         {
-			if(createRequestExecutorInternal(fdData.fd, fdData.execType) != 0)
+            if(createRequestExecutorInternal(fdData.fd, fdData.execType) != 0)
             {
-				close(fdData.fd);
+                close(fdData.fd);
             }
         }
         return 0;
     }
 
-	int createRequestExecutor(int fd, ExecutorType execType) override
+    int createRequestExecutor(int fd, ExecutorType execType) override
     {
         if(parameters->threadCount == 1)
         {
-			return createRequestExecutorInternal(fd, execType);
+            return createRequestExecutorInternal(fd, execType);
         }
         else
         {
-			return srv->createRequestExecutor(fd, execType);
+            return srv->createRequestExecutor(fd, execType);
         }
     }
 
@@ -243,7 +243,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
         {
-			log->error("epoll_ctl failed: %s\n", strerror(errno));
+            log->error("epoll_ctl failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -286,7 +286,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
         {
-			log->error("epoll_ctl failed: %s\n", strerror(errno));
+            log->error("epoll_ctl failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -406,7 +406,7 @@ protected:
         {
             execDatas[i].index = i;
         }
-		usedExecDatas.clear();
+        usedExecDatas.clear();
         return 0;
     }
 
@@ -424,8 +424,8 @@ protected:
             return &uwsgiExecutor;
         case ExecutorType::server:
             return &serverExecutor;
-		case ExecutorType::serverSsl:
-			return &sslServerExecutor;
+        case ExecutorType::serverSsl:
+            return &sslServerExecutor;
         case ExecutorType::requestSsl:
             return &sslRequestExecutor;
         case ExecutorType::sslUwsgi:
@@ -445,7 +445,7 @@ protected:
 
         int execIndex = emptyExecDatas.top();
         emptyExecDatas.pop();
-		usedExecDatas.insert(execIndex);
+        usedExecDatas.insert(execIndex);
 
         return &execDatas[execIndex];
     }
@@ -466,15 +466,15 @@ protected:
         execData->down();
 
         emptyExecDatas.push(execData->index);
-		usedExecDatas.erase(execData->index);
+        usedExecDatas.erase(execData->index);
     }
 
 
-	int createRequestExecutorInternal(int fd, ExecutorType execType)
+    int createRequestExecutorInternal(int fd, ExecutorType execType)
     {
         ExecutorData *pExecData = createExecutorData();
 
-		pExecData->pExecutor = getExecutor(execType);
+        pExecData->pExecutor = getExecutor(execType);
         pExecData->fd0 = fd;
 
         if(pExecData->pExecutor->up(*pExecData) != 0)
@@ -505,8 +505,8 @@ protected:
     epoll_event *events = nullptr;
 
     std::stack<int, std::vector<int>> emptyExecDatas;
-	std::stack<int, std::vector<int>> emptyPollDatas;
-	std::set<int> usedExecDatas;
+    std::stack<int, std::vector<int>> emptyPollDatas;
+    std::set<int> usedExecDatas;
 
     std::atomic_int numOfPollFds;
 
@@ -518,19 +518,20 @@ protected:
 
     static const int MAX_NEW_FDS = 1000;
 
-	struct NewFdData{
-		ExecutorType execType;
-		int fd;
-	};
+    struct NewFdData
+    {
+        ExecutorType execType;
+        int fd;
+    };
 
-	boost::lockfree::spsc_queue<NewFdData> newFdsQueue;
+    boost::lockfree::spsc_queue<NewFdData> newFdsQueue;
     std::mutex newFdsMutex;
 
 
     int epollFd = -1;
     int eventFd = -1;
 
-	long long int lastCheckTimeoutMillis = 0;
+    long long int lastCheckTimeoutMillis = 0;
 };
 
 #endif
