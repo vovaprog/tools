@@ -1,8 +1,14 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <pthread.h>
 
 #include <Log.h>
+
+static unsigned long id_function(void)
+{
+  return (unsigned long)pthread_self();
+}
 
 int initSsl(SSL_CTX* &globalSslCtx, Log *log)
 {
@@ -38,6 +44,10 @@ int initSsl(SSL_CTX* &globalSslCtx, Log *log)
         SSL_CTX_free(globalSslCtx);
         return -1;
     }
+
+	//CRYPTO_set_id_callback(id_function);
+	//CRYPTO_THREADID_set_callback(id_function);
+
 
     log->info("ssl inited\n");
 

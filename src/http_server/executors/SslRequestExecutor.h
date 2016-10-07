@@ -128,7 +128,7 @@ public:
         }
 
         log->warning("invalid process call\n");
-        return ProcessResult::ok;
+		return ProcessResult::removeExecutor;
     }
 
 protected:
@@ -136,16 +136,6 @@ protected:
     ssize_t readFd0(ExecutorData &data, void *buf, size_t count) override
     {
         return SSL_read(data.ssl, buf, count);
-
-
-        /*int ret = SSL_read(data.ssl, buf, count);
-        if(ret <= 0)
-        {
-            int err = SSL_get_error(data.ssl, ret);
-            printf("%d\n",err);
-            //SSL_ERROR_ZERO_RETURN
-        }
-        return ret;*/
     }
 
     ProcessResult process_handshake(ExecutorData &data)

@@ -12,24 +12,6 @@ struct ServerParameters
         setDefaults();
     }
 
-    int load(const char *fileName);
-
-    int maxClients;
-    std::string rootFolder;
-    int threadCount;
-
-    std::vector<int> httpPorts;
-    std::vector<int> httpsPorts;
-
-    std::vector<std::string> uwsgiApplications;
-
-    Log::Level logLevel;
-    Log::Type logType;
-    int logFileSize;
-    int logArchiveCount;
-
-    int executorTimeoutMillis;
-
     void setDefaults()
     {
         maxClients = 1000;
@@ -44,17 +26,26 @@ struct ServerParameters
         logArchiveCount = 10;
         executorTimeoutMillis = 10000;
     }
+  
+    int load(const char *fileName);
 
-    void writeToLog(Log *log)
-    {
-        log->info("----- server parameters -----\n");
-        log->info("maxClients: %d\n", maxClients);
-        log->info("rootFolder: %s\n", rootFolder.c_str());
-        log->info("threadCount: %d\n", threadCount);
-        log->info("logLevel: %s\n", Log::logLevelString(logLevel));
-        log->info("logType: %s\n", Log::logTypeString(logType));
-        log->info("-----------------------------\n");
-    }
+    void writeToLog(Log *log);
+
+    
+    std::string rootFolder;
+
+    int maxClients;
+    int threadCount;
+    int executorTimeoutMillis;
+
+    Log::Level logLevel;
+    Log::Type logType;
+    int logFileSize;
+    int logArchiveCount;   
+
+    std::vector<int> httpPorts;
+    std::vector<int> httpsPorts;
+    std::vector<std::string> uwsgiApplications;
 };
 
 #endif

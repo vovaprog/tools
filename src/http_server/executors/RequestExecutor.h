@@ -63,7 +63,7 @@ public:
         }
 
         log->warning("invalid process call\n");
-        return ProcessResult::ok;
+		return ProcessResult::removeExecutor;
     }
 
 

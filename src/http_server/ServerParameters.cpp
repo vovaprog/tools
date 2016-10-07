@@ -50,6 +50,8 @@ int readElementString(tinyxml2::XMLElement *parent, const char *elementName, std
 }
 
 #define INT_PARAM(paramName) if(readElementInt(root, #paramName, paramName) != 0) { return -1; }
+#define STRING_PARAM(paramName) if(readElementString(root, #paramName, paramName) != 0) { return -1; }
+#define STRING_PARAM_RET(paramName, ret) if(readElementString(root, #paramName, ret) != 0) { return -1; }
 
 int ServerParameters::load(const char *fileName)
 {
@@ -74,17 +76,12 @@ int ServerParameters::load(const char *fileName)
     INT_PARAM(maxClients);
     INT_PARAM(threadCount);
     INT_PARAM(executorTimeoutMillis);
+    INT_PARAM(logFileSize);
+    INT_PARAM(logArchiveCount);
+    STRING_PARAM(rootFolder);
 
-    if(readElementString(root, "rootFolder", rootFolder) != 0)
-    {
-        return -1;
-    }
-
-    std::string s;
-    if(readElementString(root, "logLevel", s) != 0)
-    {
-        return -1;
-    }
+    std::string s = "info";
+    STRING_PARAM_RET(logLevel, s);
     if(s == "debug") logLevel = Log::Level::debug;
     else if(s == "info") logLevel = Log::Level::info;
     else if(s == "warning") logLevel = Log::Level::warning;
@@ -95,11 +92,8 @@ int ServerParameters::load(const char *fileName)
         return -1;
     }
 
-    s = "";
-    if(readElementString(root, "logType", s) != 0)
-    {
-        return -1;
-    }
+    s = "stdout";
+    STRING_PARAM_RET(logType, s);
     if(s == "stdout") logType = Log::Type::stdout;
     else if(s == "mmap") logType = Log::Type::mmap;
     else
@@ -111,7 +105,7 @@ int ServerParameters::load(const char *fileName)
     tinyxml2::XMLElement *parent = root->FirstChildElement("httpPorts");
     if(parent != nullptr)
     {
-        for (tinyxml2::XMLElement *child = parent->FirstChildElement("httpPort"); child != NULL; child = child->NextSiblingElement())        
+        for (tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())        
         {
             int port;
             if(child->QueryIntText(&port) != 0)
@@ -130,7 +124,7 @@ int ServerParameters::load(const char *fileName)
     parent = root->FirstChildElement("httpsPorts");
     if(parent != nullptr)
     {
-        for (tinyxml2::XMLElement *child = parent->FirstChildElement("httpsPort"); child != NULL; child = child->NextSiblingElement())        
+        for (tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())        
         {
             int port;
             if(child->QueryIntText(&port) != 0)
@@ -141,9 +135,50 @@ int ServerParameters::load(const char *fileName)
             httpsPorts.push_back(port);
         }
     }
-    
+
+    parent = root->FirstChildElement("uwsgiApplications");
+    if(parent != nullptr)
+    {
+        for (tinyxml2::XMLElement *child = parent->FirstChildElement("application"); child != NULL; child = child->NextSiblingElement())        
+        {
+            const char *app = child->GetText();
+            if(app == nullptr)
+            {
+                printf("invalid uwsgi application\n");
+                return -1;
+            }
+
+            uwsgiApplications.emplace_back(app);
+       }
+    }
+
     return 0;
 }
 
+void ServerParameters::writeToLog(Log *log)
+{
+    log->info("----- server parameters -----\n");
+    log->info("rootFolder: %s\n", rootFolder.c_str());
+    log->info("maxClients: %d\n", maxClients);
+    log->info("threadCount: %d\n", threadCount);
+    log->info("executorTimeoutMillis: %d\n", executorTimeoutMillis);   
+    log->info("logLevel: %s\n", Log::logLevelString(logLevel));
+    log->info("logType: %s\n", Log::logTypeString(logType));
+    log->info("logFileSize: %d\n", logFileSize);
+    log->info("logArchiveCount: %d\n", logArchiveCount);
+    for(int port : httpPorts)
+    {
+        log->info("httpPort: %d\n", port);
+    }
+    for(int port : httpsPorts)
+    {
+        log->info("httpsPort: %d\n", port);
+    }
+    for(std::string &app : uwsgiApplications)
+    {
+        log->info("uwsgi application: %s\n", app.c_str());
+    }
+    log->info("-----------------------------\n");
+}
 
 
