@@ -26,9 +26,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    printf("maxClients: %d\n", params.maxClients);
+    //printf("maxClients: %d  rootFolder: %s\n", params.maxClients, params.rootFolder.c_str());
 
-    return 0;
+//    return 0;
 
     /*
     params.maxClients = 1000;

@@ -42,6 +42,8 @@ public:
             return -1;
         }
 
+        parameters.writeToLog(log);
+
         if(parameters.httpsPorts.size() > 0)
         {
             if(initSsl(globalSslCtx, log) != 0)

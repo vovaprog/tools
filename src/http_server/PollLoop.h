@@ -97,7 +97,7 @@ public:
         {
             if(execDatas[i].removeOnTimeout)
             {
-                if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMilliseconds)
+                if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMillis)
                 {
                     removeExecutorData(&execDatas[i]);
                 }
@@ -156,7 +156,7 @@ public:
                 }
             }
 
-            if(curMillis - lastCheckTimeoutMillis >= parameters->executorTimeoutMilliseconds)
+            if(curMillis - lastCheckTimeoutMillis >= parameters->executorTimeoutMillis)
             {
                 checkTimeout(curMillis);
             }

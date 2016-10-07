@@ -25,6 +25,26 @@ public:
     virtual void warning(const char* format, ...) = 0;
     virtual void error(const char* format, ...) = 0;
 
+    static const char* logLevelString(Level level)
+    {
+        switch(level){
+        case Level::debug: return "debug";
+        case Level::info: return "info";
+        case Level::warning: return "warning";
+        case Level::error: return "error";
+        default: return "unknown";
+        }
+    }
+
+    static const char* logTypeString(Type type)
+    {
+        switch(type){
+        case Type::stdout: return "stdout";
+        case Type::mmap: return "mmap";
+        default: return "unknown";
+        }
+    }
+
 protected:
 
     Level level = Level::info;
