@@ -39,5 +39,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthre
 
 add_executable(http_server ${SOURCE})
 
-target_link_libraries(http_server ssl)
+target_link_libraries(http_server ssl crypto)
 

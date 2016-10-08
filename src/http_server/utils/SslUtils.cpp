@@ -2,12 +2,34 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <pthread.h>
+#include <mutex>
 
 #include <Log.h>
 
-static unsigned long id_function(void)
+/*static unsigned long id_function(void)
 {
   return (unsigned long)pthread_self();
+}*/
+
+void id_function2(CRYPTO_THREADID *pid)
+{
+    CRYPTO_THREADID_set_numeric(pid, (unsigned long)pthread_self());
+}
+
+std::mutex *mutexes = nullptr;
+
+void lock_callback(int mode, int type, const char *file, int line)
+{
+    (void)file;
+    (void)line;
+    if(mode & CRYPTO_LOCK) 
+    {
+        mutexes[type].lock();        
+    }
+    else 
+    {
+        mutexes[type].unlock();
+    }
 }
 
 int initSsl(SSL_CTX* &globalSslCtx, Log *log)
@@ -46,7 +68,11 @@ int initSsl(SSL_CTX* &globalSslCtx, Log *log)
     }
 
 	//CRYPTO_set_id_callback(id_function);
-	//CRYPTO_THREADID_set_callback(id_function);
+	CRYPTO_THREADID_set_callback(id_function2);
+    printf("!!!!!!!!!!! %d !!!!!!!!!!!\n",(int)CRYPTO_num_locks());
+    mutexes = new std::mutex[CRYPTO_num_locks()];
+    CRYPTO_set_locking_callback(lock_callback);
+
 
 
     log->info("ssl inited\n");
