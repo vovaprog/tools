@@ -66,7 +66,7 @@ public:
             return process_sendFile(data);
         }
 
-        log->warning("invalid process call\n");
+        log->warning("invalid process call (file)\n");
 		return ProcessResult::removeExecutor;
     }
 

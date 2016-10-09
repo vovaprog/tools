@@ -52,9 +52,6 @@ public:
         rootFolderLength = strlen(fileNameBuffer);
 
 
-        signal(SIGPIPE, SIG_IGN);
-
-
         if(initDataStructs() != 0)
         {
             destroy();
@@ -93,6 +90,8 @@ public:
 
     int run()
     {
+        signal(SIGPIPE, SIG_IGN);
+
         runFlag.store(true);
 
         while(epollFd > 0 && runFlag.load())
@@ -227,7 +226,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
         {
-            log->error("epoll_ctl failed: %s\n", strerror(errno));
+            log->error("epoll_ctl add failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -270,7 +269,7 @@ public:
         ev.data.ptr = &pollDatas[pollIndex];
         if(epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
         {
-            log->error("epoll_ctl failed: %s\n", strerror(errno));
+            log->error("epoll_ctl mod failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -281,7 +280,7 @@ public:
     {
         if(epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) != 0)
         {
-            log->error("epoll_ctl failed: %s\n", strerror(errno));
+            log->error("epoll_ctl del failed: %s\n", strerror(errno));
             return -1;
         }
         if(fd == data.fd0)

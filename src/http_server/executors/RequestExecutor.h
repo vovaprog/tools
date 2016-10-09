@@ -62,7 +62,7 @@ public:
             return process_readRequest(data);
         }
 
-        log->warning("invalid process call\n");
+        log->warning("invalid process call (request)\n");
 		return ProcessResult::removeExecutor;
     }
 

@@ -75,7 +75,7 @@ public:
             return process_forwardResponseOnlyWrite(data);
         }
 
-        loop->log->warning("invalid process call\n");
+        loop->log->warning("invalid process call (uwsgi)\n");
 		return ProcessResult::removeExecutor;
     }
 

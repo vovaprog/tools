@@ -33,7 +33,7 @@ public:
 
         if(result == HandleHandshakeResult::ok)
         {
-            if(loop->editPollFd(data, data.fd0, EPOLLIN) != 0)
+            if(loop->addPollFd(data, data.fd0, EPOLLIN) != 0)
             {
                 return -1;
             }
@@ -55,10 +55,7 @@ public:
     {
         SSL *ssl = nullptr;
 
-        {
-            std::lock_guard<std::mutex>(loop->srv->sslCtxMutex);
-            ssl = SSL_new(loop->srv->sslCtx);
-        }
+        ssl = SSL_new(loop->srv->sslCtx);
 
         if(ssl == NULL)
         {
@@ -118,7 +115,7 @@ public:
         }
         else
         {
-            log->error("SSL_do_handshake return %d error %d errno %d msg %s\n", ret, err, errno, strerror(errno));
+            log->error("SSL_do_handshake error. return: %d   error: %d   errno: %d   strerror: %s\n", ret, err, errno, strerror(errno));
             return HandleHandshakeResult::error;
         }
 
@@ -135,8 +132,19 @@ public:
         {
             return process_readRequest(data);
         }
+        if((events & EPOLLHUP) != 0 && fd == data.fd0)
+        {
+            log->info("client disconnected\n");
+            return ProcessResult::removeExecutor;
+        }
+        if((events & EPOLLERR) != 0 && fd == data.fd0)
+        {
+            log->warning("EPOLLERR on socket fd\n");
+            return ProcessResult::removeExecutor;
+        }
 
-        log->warning("invalid process call\n");
+        log->warning("invalid process call (sslRequest). data.state: %d   fd0: %s   events: %d\n",
+                     (int)data.state, (fd == data.fd0) ? "true" : "false" , events);
 		return ProcessResult::removeExecutor;
     }
 

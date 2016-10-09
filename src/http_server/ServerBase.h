@@ -15,7 +15,6 @@ public:
 
     Log *log = nullptr;
     SSL_CTX* sslCtx = nullptr;
-    std::mutex sslCtxMutex;
 };
 
 #endif
