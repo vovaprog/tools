@@ -33,6 +33,10 @@ public:
 
         if(result == HandleHandshakeResult::ok)
         {
+            if(loop->editPollFd(data, data.fd0, EPOLLIN) != 0)
+            {
+                return -1;
+            }
             data.state = ExecutorData::State::readRequest;
         }
         else if(result == HandleHandshakeResult::again)
