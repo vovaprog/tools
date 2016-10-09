@@ -2,6 +2,7 @@
 #define SERVER_BASE_H
 
 #include <openssl/ssl.h>
+#include <mutex>
 
 #include <Log.h>
 #include <ExecutorType.h>
@@ -13,7 +14,8 @@ public:
     virtual int createRequestExecutor(int fd, ExecutorType execType) = 0;
 
     Log *log = nullptr;
-    SSL_CTX* globalSslCtx = nullptr;
+    SSL_CTX* sslCtx = nullptr;
+    std::mutex sslCtxMutex;
 };
 
 #endif

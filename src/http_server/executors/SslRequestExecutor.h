@@ -49,7 +49,12 @@ public:
 
     int sslInit(ExecutorData &data)
     {
-        SSL *ssl = SSL_new(loop->srv->globalSslCtx);
+        SSL *ssl = nullptr;
+
+        {
+            std::lock_guard<std::mutex>(loop->srv->sslCtxMutex);
+            ssl = SSL_new(loop->srv->sslCtx);
+        }
 
         if(ssl == NULL)
         {

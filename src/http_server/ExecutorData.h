@@ -16,6 +16,12 @@ struct ExecutorData
 
     void down()
     {
+        if(ssl != nullptr)
+        {
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            ssl = nullptr;
+        }
         if(fd0 > 0)
         {
             close(fd0);
@@ -37,12 +43,7 @@ struct ExecutorData
 
         buffer.clear();
 
-        if(ssl != nullptr)
-        {
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            ssl = nullptr;
-        }
+        removeOnTimeout = true;
 
         return;
     }

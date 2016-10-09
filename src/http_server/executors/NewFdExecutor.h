@@ -2,6 +2,7 @@
 #define NEW_FD_EXECUTOR_H
 
 #include <sys/eventfd.h>
+#include <sys/epoll.h>
 
 #include <Executor.h>
 #include <ExecutorData.h>

@@ -71,6 +71,7 @@ public:
         }
 
 
+        newFdExecutor.init(this);
         if(createEventFd() != 0)
         {
             destroy();
@@ -81,8 +82,7 @@ public:
         sslServerExecutor.init(this);
         requestExecutor.init(this);
         fileExecutor.init(this);
-        uwsgiExecutor.init(this);
-        newFdExecutor.init(this);
+        uwsgiExecutor.init(this);        
         sslRequestExecutor.init(this);
         sslFileExecutor.init(this);
         sslUwsgiExecutor.init(this);
@@ -91,29 +91,13 @@ public:
         return 0;
     }
 
-    void checkTimeout(int curMillis)
-    {
-        for(int i : usedExecDatas)
-        {
-            if(execDatas[i].removeOnTimeout)
-            {
-                if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMillis)
-                {
-                    removeExecutorData(&execDatas[i]);
-                }
-            }
-        }
-
-        lastCheckTimeoutMillis = curMillis;
-    }
-
     int run()
     {
         runFlag.store(true);
 
         while(epollFd > 0 && runFlag.load())
         {
-            int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+            int nEvents = epoll_wait(epollFd, events, MAX_EVENTS, parameters->executorTimeoutMillis);
             if(nEvents == -1)
             {
                 if(errno == EINTR)
@@ -332,6 +316,22 @@ public:
 
 protected:
 
+    void checkTimeout(long long int curMillis)
+    {
+        for(int i : usedExecDatas)
+        {
+            if(execDatas[i].removeOnTimeout)
+            {
+                if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMillis)
+                {
+                    removeExecutorData(&execDatas[i]);
+                }
+            }
+        }
+
+        lastCheckTimeoutMillis = curMillis;
+    }
+
     int createEventFd()
     {
         eventFd = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE); //check flags !!!
@@ -347,11 +347,13 @@ protected:
         execData->fd0 = eventFd;
         execData->pExecutor = &newFdExecutor;
 
-        if(addPollFd(*execData, eventFd, EPOLLIN) != 0)
+        if(addPollFd(*execData, execData->fd0, EPOLLIN) != 0)
         {
             removeExecutorData(execData);
             return -1;
         }
+
+        execData->pExecutor->up(*execData);
 
         return 0;
     }
@@ -473,6 +475,11 @@ protected:
     int createRequestExecutorInternal(int fd, ExecutorType execType)
     {
         ExecutorData *pExecData = createExecutorData();
+
+        if(pExecData == nullptr)
+        {
+            return -1;
+        }
 
         pExecData->pExecutor = getExecutor(execType);
         pExecData->fd0 = fd;

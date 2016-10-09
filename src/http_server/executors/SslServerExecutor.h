@@ -75,6 +75,7 @@ public:
             return ProcessResult::shutdown;
         }
 
+
         loop->createRequestExecutor(clientSockFd, ExecutorType::requestSsl);
 
         return ProcessResult::ok;

@@ -11,7 +11,6 @@
 #include <Log.h>
 #include <LogStdout.h>
 #include <LogMmap.h>
-#include <SslUtils.h>
 
 
 class Server: public ServerBase
@@ -39,6 +38,7 @@ public:
 
         if(log->init(&parameters) != 0)
         {
+            stop();
             return -1;
         }
 
@@ -46,8 +46,17 @@ public:
 
         if(parameters.httpsPorts.size() > 0)
         {
-            if(initSsl(globalSslCtx, log) != 0)
+            if(sslInit() != 0)
             {
+                stop();
+                return -1;
+            }
+
+            sslCtx = sslCreateContext(log);
+
+            if(sslCtx == nullptr)
+            {
+                stop();
                 return -1;
             }
         }
@@ -128,10 +137,10 @@ public:
             threads = nullptr;
         }
 
-        if(globalSslCtx != nullptr)
+        if(sslCtx != nullptr)
         {
-            destroySsl(globalSslCtx);
-            globalSslCtx = nullptr;
+            sslDestroyContext(sslCtx);
+            sslCtx = nullptr;
         }
 
         if(log != nullptr)
@@ -180,8 +189,17 @@ public:
         log->info("poll files. total:    %d\n", totalNumberOfFds);
     }
 
+    static void cleanup();
 
 protected:
+
+    static int sslInit();
+   
+    SSL_CTX* sslCreateContext(Log *log);
+    void sslDestroyContext(SSL_CTX *ctx);
+   
+
+    static bool sslInited;
 
     ServerParameters parameters;
 

@@ -79,6 +79,7 @@ int ServerParameters::load(const char *fileName)
     INT_PARAM(logFileSize);
     INT_PARAM(logArchiveCount);
     STRING_PARAM(rootFolder);
+    STRING_PARAM(logFolder);
 
     std::string s = "info";
     STRING_PARAM_RET(logLevel, s);

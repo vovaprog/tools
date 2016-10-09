@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <ServerParameters.h>
 #include <TransferBuffer.h>
@@ -25,6 +26,11 @@ public:
 
     int init(ServerParameters *params) override
     {
+        if(params->logFolder.size() + 2 > (unsigned int)maxLogFileNameSize - 30)
+        {
+            return -1;
+        }
+
         int ret = LogBase::init(params);
 
         if(ret != 0)
@@ -35,6 +41,22 @@ public:
         logFileSize = params->logFileSize;
         logArchiveCount = params->logArchiveCount;
 
+        strcpy(logFileName, params->logFolder.c_str());
+
+
+        struct stat st = { 0 };
+
+        if (stat(logFileName, &st) == -1)
+        {
+            if(mkdir(logFileName, 0700) != 0)
+            {
+                perror("mkdir failed");
+                return -1;
+            }
+        }
+
+        strcat(logFileName, "/http.log");
+
         return rotate();
     }
 
@@ -43,7 +65,7 @@ protected:
 
     int openFile()
     {
-        int fd = open("./log/http.log", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+        int fd = open(logFileName, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
         if(fd < 0)
         {
             perror("open failed");
@@ -88,18 +110,17 @@ protected:
         char *p0 = fileName0;
         char *p1 = fileName1;
 
-        snprintf(p1, 300, "./log/http.log.%d", logArchiveCount);
+        snprintf(p1, 300, "%s.%d", logFileName, logArchiveCount);
         remove(p1);
 
         for(int i = logArchiveCount - 1; i > 0; --i)
         {
-            snprintf(p0, 300, "./log/http.log.%d", i);
+            snprintf(p0, 300, "%s.%d", logFileName, i);
             rename(p0, p1);
             std::swap(p0, p1);
         }
 
-        strcpy(p0, "./log/http.log");
-        rename(p0, p1);
+        rename(logFileName, p1);
 
         return openFile();
     }
@@ -152,6 +173,9 @@ protected:
     const int maxMessageSize = 512;
 
     int fd = -1;
+
+    static const int maxLogFileNameSize = 300;
+    char logFileName[maxLogFileNameSize + 1];
 };
 
 

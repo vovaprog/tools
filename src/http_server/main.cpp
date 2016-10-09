@@ -48,5 +48,7 @@ int main(int argc, char** argv)
 
     srv.stop();
 
+    Server::cleanup();
+
     return 0;
 }

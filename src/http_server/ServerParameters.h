@@ -16,6 +16,7 @@ struct ServerParameters
     {
         maxClients = 1000;
         rootFolder = "./data";
+        logFolder = "./log";
         threadCount = 1;
         httpPorts.clear();
         httpsPorts.clear();
@@ -33,6 +34,7 @@ struct ServerParameters
 
     
     std::string rootFolder;
+    std::string logFolder;
 
     int maxClients;
     int threadCount;
