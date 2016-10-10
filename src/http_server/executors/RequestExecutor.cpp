@@ -141,8 +141,8 @@ int RequestExecutor::checkFileUrl(ExecutorData &data, char *urlBuffer)
 bool RequestExecutor::isUrlPrefix(const char *url, const char *prefix)
 {
     int ui, pi;
-    for(ui = 0;url[ui] =='/';++ui);
-    for(pi = 0;prefix[pi] == '/';++pi);
+    for(ui = 0; url[ui] == '/'; ++ui);
+    for(pi = 0; prefix[pi] == '/'; ++pi);
 
     for(; url[ui] != 0 && prefix[pi] != 0 && url[ui] == prefix[pi]; ++ui, ++pi);
 
