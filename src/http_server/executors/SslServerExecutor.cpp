@@ -1,4 +1,4 @@
-#include <ServerExecutor.h>
+#include <SslServerExecutor.h>
 #include <PollLoopBase.h>
 #include <NetworkUtils.h>
 
@@ -7,15 +7,15 @@
 #include <sys/socket.h>
 
 
-int ServerExecutor::init(PollLoopBase *srv)
+int SslServerExecutor::init(PollLoopBase *loop)
 {
-    this->loop = srv;
+    this->loop = loop;
     log = loop->log;
     return 0;
 }
 
 
-int ServerExecutor::up(ExecutorData &data)
+int SslServerExecutor::up(ExecutorData &data)
 {
     data.removeOnTimeout = false;
 
@@ -34,7 +34,7 @@ int ServerExecutor::up(ExecutorData &data)
 }
 
 
-ProcessResult ServerExecutor::process(ExecutorData &data, int fd, int events)
+ProcessResult SslServerExecutor::process(ExecutorData &data, int fd, int events)
 {
     if(fd != data.fd0)
     {
@@ -53,7 +53,10 @@ ProcessResult ServerExecutor::process(ExecutorData &data, int fd, int events)
         return ProcessResult::shutdown;
     }
 
-    loop->createRequestExecutor(clientSockFd, ExecutorType::request);
+
+    loop->createRequestExecutor(clientSockFd, ExecutorType::requestSsl);
 
     return ProcessResult::ok;
 }
+
+

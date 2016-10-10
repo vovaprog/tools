@@ -13,21 +13,21 @@ set(SOURCE
     ProcessResult.h
     ./log/Log.h ./log/LogStdout.h ./log/LogMmap.h ./log/LogBase.h
     PollData.h
-    ExecutorData.h
-    executors/UwsgiExecutor.h
+    ExecutorData.h    
     PollLoopBase.h PollLoop.h
     ServerBase.h
     ExecutorType.h
-    UwsgiApplicationParameters.h
-    ./executors/Executor.h ./executors/Executor.cpp
-    ./executors/ServerExecutor.h ./executors/ServerExecutor.cpp
-    ./executors/SslServerExecutor.h
+    UwsgiApplicationParameters.h    
+    executors/Executor.h ./executors/Executor.cpp
+    executors/ServerExecutor.h ./executors/ServerExecutor.cpp
+    executors/SslServerExecutor.h ./executors/SslServerExecutor.cpp
     ./executors/RequestExecutor.h ./executors/RequestExecutor.cpp
     ./executors/FileExecutor.h ./executors/FileExecutor.cpp
     ./executors/NewFdExecutor.h ./executors/NewFdExecutor.cpp
-    ./executors/SslRequestExecutor.h
-    ./executors/SslFileExecutor.h
-    ./executors/SslUwsgiExecutor.h
+    ./executors/SslRequestExecutor.h ./executors/SslRequestExecutor.cpp
+    ./executors/SslFileExecutor.h ./executors/SslFileExecutor.cpp
+    executors/SslUwsgiExecutor.h executors/SslUwsgiExecutor.cpp
+    executors/UwsgiExecutor.h executors/UwsgiExecutor.cpp
     ./utils/percent_decode.h ./utils/percent_decode.c
     ./utils/FileUtils.h ./utils/FileUtils.cpp
     ./utils/NetworkUtils.h ./utils/NetworkUtils.cpp

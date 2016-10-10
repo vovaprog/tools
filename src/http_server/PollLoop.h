@@ -1,6 +1,8 @@
 #ifndef POLL_LOOP_H
 #define POLL_LOOP_H
 
+#include <signal.h>
+#include <sys/epoll.h>
 #include <vector>
 #include <stack>
 #include <mutex>
