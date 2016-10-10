@@ -19,12 +19,12 @@ set(SOURCE
     ServerBase.h
     ExecutorType.h
     UwsgiApplicationParameters.h
-    ./executors/Executor.h
-    ./executors/ServerExecutor.h
+    ./executors/Executor.h ./executors/Executor.cpp
+    ./executors/ServerExecutor.h ./executors/ServerExecutor.cpp
     ./executors/SslServerExecutor.h
-    ./executors/RequestExecutor.h
-    ./executors/FileExecutor.h
-    ./executors/NewFdExecutor.h
+    ./executors/RequestExecutor.h ./executors/RequestExecutor.cpp
+    ./executors/FileExecutor.h ./executors/FileExecutor.cpp
+    ./executors/NewFdExecutor.h ./executors/NewFdExecutor.cpp
     ./executors/SslRequestExecutor.h
     ./executors/SslFileExecutor.h
     ./executors/SslUwsgiExecutor.h

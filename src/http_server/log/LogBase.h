@@ -13,7 +13,7 @@ public:
         return 0;
     }
 
-    void debug(const char* format, ...) override
+    void debug(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
     {
         if(level <= Level::debug)
         {
@@ -26,7 +26,7 @@ public:
         }
     }
 
-    void info(const char* format, ...) override
+    void info(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
     {
         if(level <= Level::info)
         {
@@ -37,7 +37,7 @@ public:
         }
     }
 
-    void warning(const char* format, ...) override
+    void warning(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
     {
         if(level <= Level::warning)
         {
@@ -48,7 +48,7 @@ public:
         }
     }
 
-    void error(const char* format, ...) override
+    void error(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
     {
         va_list args;
         va_start(args, format);

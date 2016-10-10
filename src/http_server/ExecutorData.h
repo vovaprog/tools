@@ -2,6 +2,7 @@
 #define EXECUTOR_DATA_H
 
 #include <openssl/ssl.h>
+#include <unistd.h>
 
 #include <TransferRingBuffer.h>
 

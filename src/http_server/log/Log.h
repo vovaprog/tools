@@ -20,10 +20,10 @@ public:
 
     virtual int init(ServerParameters *params) = 0;
 
-    virtual void debug(const char* format, ...) = 0;
-    virtual void info(const char* format, ...) = 0;
-    virtual void warning(const char* format, ...) = 0;
-    virtual void error(const char* format, ...) = 0;
+    virtual void debug(const char* format, ...)   __attribute__ ((format (printf, 2, 3))) = 0;
+    virtual void info(const char* format, ...)    __attribute__ ((format (printf, 2, 3))) = 0;
+    virtual void warning(const char* format, ...) __attribute__ ((format (printf, 2, 3))) = 0;
+    virtual void error(const char* format, ...)   __attribute__ ((format (printf, 2, 3))) = 0;
 
     static const char* logLevelString(Level level)
     {
