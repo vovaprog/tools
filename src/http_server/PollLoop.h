@@ -316,17 +316,26 @@ public:
 protected:
 
     void checkTimeout(long long int curMillis)
-    {
+	{
+		removeExecDatas.erase(removeExecDatas.begin(), removeExecDatas.end());
+		removeExecDatas.reserve(usedExecDatas.size());
+
         for(int i : usedExecDatas)
         {
             if(execDatas[i].removeOnTimeout)
             {
                 if(curMillis - execDatas[i].lastProcessTime > parameters->executorTimeoutMillis)
                 {
-                    removeExecutorData(&execDatas[i]);
+					//can't remove here, because removeExecutorData modifies usedExecDatas
+					removeExecDatas.push_back(i);
                 }
             }
         }
+
+		for(int i : removeExecDatas)
+		{
+			removeExecutorData(&execDatas[i]);
+		}
 
         lastCheckTimeoutMillis = curMillis;
     }
@@ -512,7 +521,9 @@ protected:
 
     std::stack<int, std::vector<int>> emptyExecDatas;
     std::stack<int, std::vector<int>> emptyPollDatas;
+
     std::set<int> usedExecDatas;
+	std::vector<int> removeExecDatas;
 
     std::atomic_int numOfPollFds;
 

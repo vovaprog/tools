@@ -214,10 +214,11 @@ protected:
                         strcat(loop->fileNameBuffer, urlBuffer);
                     }
 
-                    for(std::string & app : loop->parameters->uwsgiApplications)
+					for(UwsgiApplicationParameters& app : loop->parameters->uwsgiApplications)
                     {
-                        if(isUrlPrefix(urlBuffer, app.c_str()))
+						if(isUrlPrefix(urlBuffer, app.prefix.c_str()))
                         {
+							data.port = app.port;
                             return ParseRequestResult::uwsgi;
                         }
                     }

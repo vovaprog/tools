@@ -51,7 +51,7 @@ int readElementString(tinyxml2::XMLElement *parent, const char *elementName, std
 
 #define INT_PARAM(paramName) if(readElementInt(root, #paramName, paramName) != 0) { return -1; }
 #define STRING_PARAM(paramName) if(readElementString(root, #paramName, paramName) != 0) { return -1; }
-#define STRING_PARAM_RET(paramName, ret) if(readElementString(root, #paramName, ret) != 0) { return -1; }
+#define STRING_PARAM_RET(parent, paramName, ret) if(readElementString(parent, #paramName, ret) != 0) { return -1; }
 
 int ServerParameters::load(const char *fileName)
 {
@@ -82,7 +82,7 @@ int ServerParameters::load(const char *fileName)
     STRING_PARAM(logFolder);
 
     std::string s = "info";
-    STRING_PARAM_RET(logLevel, s);
+	STRING_PARAM_RET(root, logLevel, s);
     if(s == "debug") logLevel = Log::Level::debug;
     else if(s == "info") logLevel = Log::Level::info;
     else if(s == "warning") logLevel = Log::Level::warning;
@@ -94,7 +94,7 @@ int ServerParameters::load(const char *fileName)
     }
 
     s = "stdout";
-    STRING_PARAM_RET(logType, s);
+	STRING_PARAM_RET(root, logType, s);
     if(s == "stdout") logType = Log::Type::stdout;
     else if(s == "mmap") logType = Log::Type::mmap;
     else
@@ -142,14 +142,18 @@ int ServerParameters::load(const char *fileName)
     {
         for (tinyxml2::XMLElement *child = parent->FirstChildElement("application"); child != NULL; child = child->NextSiblingElement())        
         {
-            const char *app = child->GetText();
-            if(app == nullptr)
-            {
-                printf("invalid uwsgi application\n");
-                return -1;
-            }
+			UwsgiApplicationParameters app;
 
-            uwsgiApplications.emplace_back(app);
+			if(readElementString(child, "prefix", app.prefix, true) != 0)
+			{
+				return -1;
+			}
+			if(readElementInt(child, "port", app.port, true) != 0)
+			{
+				return -1;
+			}
+
+			uwsgiApplications.push_back(app);
        }
     }
 
@@ -175,9 +179,9 @@ void ServerParameters::writeToLog(Log *log)
     {
         log->info("httpsPort: %d\n", port);
     }
-    for(std::string &app : uwsgiApplications)
+	for(UwsgiApplicationParameters& app : uwsgiApplications)
     {
-        log->info("uwsgi application: %s\n", app.c_str());
+		log->info("uwsgi application   prefix: %s   port: %d\n", app.prefix.c_str(), app.port);
     }
     log->info("-----------------------------\n");
 }

@@ -25,7 +25,7 @@ public:
     {
         data.removeOnTimeout = true;
 
-        data.fd1 = socketConnect("127.0.0.1", 7070);
+		data.fd1 = socketConnect("127.0.0.1", data.port);
 
         if(data.fd1 < 0)
         {

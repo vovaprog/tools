@@ -1,21 +1,24 @@
+cmake_minimum_required(VERSION 2.8)
+
 project (http_server)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-include_directories("." "./utils" "./executors" "./tinyxml2")
+include_directories("." "./log" "./utils" "./executors" "./tinyxml2")
 
 set(SOURCE 
     main.cpp
     Server.h Server.cpp
     ServerParameters.h ServerParameters.cpp
     ProcessResult.h
-    Log.h LogStdout.h LogMmap.h LogBase.h
+    ./log/Log.h ./log/LogStdout.h ./log/LogMmap.h ./log/LogBase.h
     PollData.h
     ExecutorData.h
     executors/UwsgiExecutor.h
     PollLoopBase.h PollLoop.h
     ServerBase.h
     ExecutorType.h
+    UwsgiApplicationParameters.h
     ./executors/Executor.h
     ./executors/ServerExecutor.h
     ./executors/SslServerExecutor.h
@@ -33,8 +36,9 @@ set(SOURCE
     ./utils/TimeUtils.h ./utils/TimeUtils.cpp
     ./tinyxml2/tinyxml2.h ./tinyxml2/tinyxml2.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O0 -g -pthread")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -O2 -pthread")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -pthread")
+
 
 add_executable(http_server ${SOURCE})
 

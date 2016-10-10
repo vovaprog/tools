@@ -4,6 +4,7 @@
 #include <Log.h>
 #include <vector>
 #include <string>
+#include <UwsgiApplicationParameters.h>
 
 struct ServerParameters
 {
@@ -47,7 +48,7 @@ struct ServerParameters
 
     std::vector<int> httpPorts;
     std::vector<int> httpsPorts;
-    std::vector<std::string> uwsgiApplications;
+	std::vector<UwsgiApplicationParameters> uwsgiApplications;
 };
 
 #endif
