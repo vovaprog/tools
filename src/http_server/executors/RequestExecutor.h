@@ -136,10 +136,13 @@ protected:
 
     bool isUrlPrefix(const char *url, const char *prefix)
     {
-        int i;
-        for(i = 0; url[i] != 0 && prefix[i] != 0 && url[i] == prefix[i]; ++i);
+		int ui, pi;
+		for(ui = 0;url[ui] =='/';++ui);
+		for(pi = 0;prefix[pi] == '/';++pi);
 
-        if((prefix[i] == 0 || prefix[i] == '/') && (url[i] == 0 || url[i] == '/' || url[i] == '?'))
+		for(; url[ui] != 0 && prefix[pi] != 0 && url[ui] == prefix[pi]; ++ui, ++pi);
+
+		if((prefix[pi] == 0 || prefix[pi] == '/') && (url[ui] == 0 || url[ui] == '/' || url[ui] == '?'))
         {
             return true;
         }
