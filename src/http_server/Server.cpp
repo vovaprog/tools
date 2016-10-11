@@ -25,11 +25,11 @@ static void sslLockCallback(int mode, int type, const char *file, int line)
 {
     (void)file;
     (void)line;
-    if(mode & CRYPTO_LOCK) 
+    if(mode & CRYPTO_LOCK)
     {
-        sslMutexes[type].lock();        
+        sslMutexes[type].lock();
     }
-    else 
+    else
     {
         sslMutexes[type].unlock();
     }
@@ -40,12 +40,12 @@ int Server::sslInit()
 {
     if(!sslInited)
     {
-        SSL_library_init();   
+        SSL_library_init();
         SSL_load_error_strings();
 
         sslMutexes = new std::recursive_mutex[CRYPTO_num_locks()];
 
-    	CRYPTO_THREADID_set_callback(sslIdCallback);
+        CRYPTO_THREADID_set_callback(sslIdCallback);
         CRYPTO_set_locking_callback(sslLockCallback);
 
         sslInited = true;
@@ -67,7 +67,7 @@ void Server::cleanup()
         if(sslMutexes != nullptr)
         {
             delete[] sslMutexes;
-            sslMutexes = nullptr;    
+            sslMutexes = nullptr;
         }
     }
 }

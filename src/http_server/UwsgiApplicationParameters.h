@@ -3,9 +3,10 @@
 
 #include <string>
 
-struct UwsgiApplicationParameters {
-	std::string prefix;
-	int port;
+struct UwsgiApplicationParameters
+{
+    std::string prefix;
+    int port;
 };
 
 #endif

@@ -14,8 +14,8 @@ tinyxml2::XMLElement* getChild(tinyxml2::XMLElement *parent, const char *element
             return nullptr;
         }
         return nullptr;
-    }    
-    return el;  
+    }
+    return el;
 }
 
 int readElementInt(tinyxml2::XMLElement *parent, const char *elementName, int &result, bool required = false)
@@ -28,7 +28,7 @@ int readElementInt(tinyxml2::XMLElement *parent, const char *elementName, int &r
             printf("invalid %s value\n", elementName);
             return -1;
         }
-        return 0; 
+        return 0;
     }
     else
     {
@@ -37,13 +37,13 @@ int readElementInt(tinyxml2::XMLElement *parent, const char *elementName, int &r
 }
 
 int readElementString(tinyxml2::XMLElement *parent, const char *elementName, std::string &result, bool required = false)
-{    
-    tinyxml2::XMLElement *el = getChild(parent, elementName, required); 
+{
+    tinyxml2::XMLElement *el = getChild(parent, elementName, required);
     if(el != nullptr)
-    {   
+    {
         result = el->GetText();
         return 0;
-    }    
+    }
     else
     {
         return required ? -1 : 0;
@@ -64,8 +64,8 @@ int ServerParameters::load(const char *fileName)
     if(doc.ErrorID() != 0)
     {
         printf("can't load config file\n");
-        return -1;    
-    }    
+        return -1;
+    }
 
     tinyxml2::XMLElement *root = doc.FirstChildElement();
     if(root == nullptr)
@@ -83,7 +83,7 @@ int ServerParameters::load(const char *fileName)
     STRING_PARAM(logFolder);
 
     std::string s = "info";
-	STRING_PARAM_RET(root, logLevel, s);
+    STRING_PARAM_RET(root, logLevel, s);
     if(s == "debug") logLevel = Log::Level::debug;
     else if(s == "info") logLevel = Log::Level::info;
     else if(s == "warning") logLevel = Log::Level::warning;
@@ -95,7 +95,7 @@ int ServerParameters::load(const char *fileName)
     }
 
     s = "stdout";
-	STRING_PARAM_RET(root, logType, s);
+    STRING_PARAM_RET(root, logType, s);
     if(s == "stdout") logType = Log::Type::stdout;
     else if(s == "mmap") logType = Log::Type::mmap;
     else
@@ -103,11 +103,11 @@ int ServerParameters::load(const char *fileName)
         printf("invalid logType\n");
         return -1;
     }
- 
+
     tinyxml2::XMLElement *parent = root->FirstChildElement("httpPorts");
     if(parent != nullptr)
     {
-        for (tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())        
+        for(tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())
         {
             int port;
             if(child->QueryIntText(&port) != 0)
@@ -126,7 +126,7 @@ int ServerParameters::load(const char *fileName)
     parent = root->FirstChildElement("httpsPorts");
     if(parent != nullptr)
     {
-        for (tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())        
+        for(tinyxml2::XMLElement *child = parent->FirstChildElement("port"); child != NULL; child = child->NextSiblingElement())
         {
             int port;
             if(child->QueryIntText(&port) != 0)
@@ -141,21 +141,21 @@ int ServerParameters::load(const char *fileName)
     parent = root->FirstChildElement("uwsgiApplications");
     if(parent != nullptr)
     {
-        for (tinyxml2::XMLElement *child = parent->FirstChildElement("application"); child != NULL; child = child->NextSiblingElement())        
+        for(tinyxml2::XMLElement *child = parent->FirstChildElement("application"); child != NULL; child = child->NextSiblingElement())
         {
-			UwsgiApplicationParameters app;
+            UwsgiApplicationParameters app;
 
-			if(readElementString(child, "prefix", app.prefix, true) != 0)
-			{
-				return -1;
-			}
-			if(readElementInt(child, "port", app.port, true) != 0)
-			{
-				return -1;
-			}
+            if(readElementString(child, "prefix", app.prefix, true) != 0)
+            {
+                return -1;
+            }
+            if(readElementInt(child, "port", app.port, true) != 0)
+            {
+                return -1;
+            }
 
-			uwsgiApplications.push_back(app);
-       }
+            uwsgiApplications.push_back(app);
+        }
     }
 
     return 0;
@@ -167,7 +167,7 @@ void ServerParameters::writeToLog(Log *log)
     log->info("rootFolder: %s\n", rootFolder.c_str());
     log->info("maxClients: %d\n", maxClients);
     log->info("threadCount: %d\n", threadCount);
-    log->info("executorTimeoutMillis: %d\n", executorTimeoutMillis);   
+    log->info("executorTimeoutMillis: %d\n", executorTimeoutMillis);
     log->info("logLevel: %s\n", Log::logLevelString(logLevel));
     log->info("logType: %s\n", Log::logTypeString(logType));
     log->info("logFileSize: %d\n", logFileSize);
@@ -180,9 +180,9 @@ void ServerParameters::writeToLog(Log *log)
     {
         log->info("httpsPort: %d\n", port);
     }
-	for(UwsgiApplicationParameters& app : uwsgiApplications)
+    for(UwsgiApplicationParameters & app : uwsgiApplications)
     {
-		log->info("uwsgi application   prefix: %s   port: %d\n", app.prefix.c_str(), app.port);
+        log->info("uwsgi application   prefix: %s   port: %d\n", app.prefix.c_str(), app.port);
     }
     log->info("-----------------------------\n");
 }

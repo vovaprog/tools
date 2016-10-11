@@ -1,29 +1,31 @@
 cmake_minimum_required(VERSION 2.8)
 
-project (http_server)
+project (epoll_http_server)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-include_directories("." "./log" "./utils" "./executors" "./tinyxml2")
+include_directories("." "./log" "./executors" "./utils")
 
 set(SOURCE 
     main.cpp
-    Server.h Server.cpp
-    ServerParameters.h ServerParameters.cpp
+
+    ServerBase.h
+    Server.h     Server.cpp
+
+    PollLoopBase.h
+    PollLoop.h     PollLoop.cpp
+
+    UwsgiApplicationParameters.h
     ProcessResult.h
+    ExecutorType.h
+    PollData.h
+    ExecutorData.h     ExecutorData.cpp
+    ServerParameters.h ServerParameters.cpp
 
     log/Log.h
-    log/LogBase.h log/LogBase.cpp
-    log/LogMmap.h log/LogMmap.cpp
+    log/LogBase.h   log/LogBase.cpp
+    log/LogMmap.h   log/LogMmap.cpp
     log/LogStdout.h log/LogStdout.cpp
-
-    PollData.h
-    ExecutorData.h ExecutorData.cpp
-    PollLoopBase.h
-    PollLoop.h PollLoop.cpp
-    ServerBase.h
-    ExecutorType.h
-    UwsgiApplicationParameters.h    
 
     executors/Executor.h           executors/Executor.cpp
     executors/ServerExecutor.h     executors/ServerExecutor.cpp
@@ -36,20 +38,17 @@ set(SOURCE
     executors/SslUwsgiExecutor.h   executors/SslUwsgiExecutor.cpp
     executors/UwsgiExecutor.h      executors/UwsgiExecutor.cpp
 
-    utils/percent_decode.h utils/percent_decode.c
-    utils/FileUtils.h utils/FileUtils.cpp
-    utils/NetworkUtils.h utils/NetworkUtils.cpp
     utils/TransferRingBuffer.h
     utils/TransferBuffer.h
-    utils/TimeUtils.h utils/TimeUtils.cpp
-
-    tinyxml2/tinyxml2.h tinyxml2/tinyxml2.cpp)
+    utils/percent_decode.h     utils/percent_decode.c
+    utils/FileUtils.h          utils/FileUtils.cpp
+    utils/NetworkUtils.h       utils/NetworkUtils.cpp
+    utils/TimeUtils.h          utils/TimeUtils.cpp)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -pthread")
 
+add_executable(epoll_http_server ${SOURCE})
 
-add_executable(http_server ${SOURCE})
-
-target_link_libraries(http_server ssl crypto tinyxml2)
+target_link_libraries(epoll_http_server ssl crypto tinyxml2)
 

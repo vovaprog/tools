@@ -28,12 +28,12 @@ struct ServerParameters
         logArchiveCount = 10;
         executorTimeoutMillis = 10000;
     }
-  
+
     int load(const char *fileName);
 
     void writeToLog(Log *log);
 
-    
+
     std::string rootFolder;
     std::string logFolder;
 
@@ -44,11 +44,11 @@ struct ServerParameters
     Log::Level logLevel;
     Log::Type logType;
     int logFileSize;
-    int logArchiveCount;   
+    int logArchiveCount;
 
     std::vector<int> httpPorts;
     std::vector<int> httpsPorts;
-	std::vector<UwsgiApplicationParameters> uwsgiApplications;
+    std::vector<UwsgiApplicationParameters> uwsgiApplications;
 };
 
 #endif

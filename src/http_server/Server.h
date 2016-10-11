@@ -30,11 +30,11 @@ public:
 protected:
 
     static int sslInit();
-   
+
     SSL_CTX* sslCreateContext(Log *log);
 
     void sslDestroyContext(SSL_CTX *ctx);
-   
+
 
 protected:
 
