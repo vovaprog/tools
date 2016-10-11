@@ -1,5 +1,6 @@
 #include <SslFileExecutor.h>
 
+#include <unistd.h>
 
 ssize_t SslFileExecutor::writeFd0(ExecutorData &data, const void *buf, size_t count)
 {

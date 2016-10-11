@@ -5,6 +5,7 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <errno.h>
 
 
 int ServerExecutor::init(PollLoopBase *srv)

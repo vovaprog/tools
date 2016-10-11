@@ -1,6 +1,7 @@
+#include <ServerParameters.h>
+
 #include <tinyxml2.h>
 
-#include <ServerParameters.h>
 
 tinyxml2::XMLElement* getChild(tinyxml2::XMLElement *parent, const char *elementName, bool required)
 {

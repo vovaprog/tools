@@ -1,7 +1,7 @@
-#include <signal.h>
-
 #include <Server.h>
-#include <Log.h>
+
+#include <signal.h>
+#include <atomic>
 
 
 Server srv;
@@ -17,9 +17,9 @@ static void sig_int_handler(int i)
 
 int main(int argc, char** argv)
 {
-    printf("USAGE: http_server config_file_name (default: ./config.xml)\n");
-
     const char *fileName = "./config.xml";
+
+    printf("USAGE: http_server config_file_name (default: %s)\n", fileName);
 
     if(argc > 1)
     {

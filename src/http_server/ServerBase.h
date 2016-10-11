@@ -1,11 +1,10 @@
 #ifndef SERVER_BASE_H
 #define SERVER_BASE_H
 
-#include <openssl/ssl.h>
-#include <mutex>
-
 #include <Log.h>
 #include <ExecutorType.h>
+
+#include <openssl/ssl.h>
 
 class ServerBase
 {

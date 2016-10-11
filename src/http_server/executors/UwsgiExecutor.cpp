@@ -3,6 +3,7 @@
 #include <NetworkUtils.h>
 
 #include <sys/epoll.h>
+#include <unistd.h>
 
 int UwsgiExecutor::init(PollLoopBase *loop)
 {

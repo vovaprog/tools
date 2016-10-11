@@ -7,60 +7,20 @@
 class LogBase: public Log
 {
 public:
-    int init(ServerParameters *params) override
-    {
-        this->level = params->logLevel;
-        return 0;
-    }
+    int init(ServerParameters *params) override;
 
-    void debug(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
-    {
-        if(level <= Level::debug)
-        {
-            va_list args;
-            va_start(args, format);
+    void debug(const char* format, ...) override __attribute__ ((format (printf, 2, 3)));
 
-            writeLog("[DEBUG]  ", format, args);
+    void info(const char* format, ...) override __attribute__ ((format (printf, 2, 3)));
 
-            va_end(args);
-        }
-    }
+    void warning(const char* format, ...) override __attribute__ ((format (printf, 2, 3)));
 
-    void info(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
-    {
-        if(level <= Level::info)
-        {
-            va_list args;
-            va_start(args, format);
-            writeLog("[INFO]   ", format, args);
-            va_end(args);
-        }
-    }
-
-    void warning(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
-    {
-        if(level <= Level::warning)
-        {
-            va_list args;
-            va_start(args, format);
-            writeLog("[WARNING]", format, args);
-            va_end(args);
-        }
-    }
-
-    void error(const char* format, ...) override __attribute__ ((format (printf, 2, 3)))
-    {
-        va_list args;
-        va_start(args, format);
-        writeLog("[ERROR]  ", format, args);
-        va_end(args);
-    }
+    void error(const char* format, ...) override __attribute__ ((format (printf, 2, 3)));
 
 protected:
 
     virtual void writeLog(const char *prefix, const char* format, va_list args) = 0;
 
 };
-
 
 #endif
