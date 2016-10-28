@@ -5,61 +5,24 @@ import subprocess
 import re
 import time
 from termcolor import colored
-import keyword
 import math
+import pygments
+from pygments.lexers import CppLexer, PythonLexer
+from pygments.formatters import TerminalFormatter
 
-keyword_color = 'cyan'
-brace_color = 'yellow'
-type_color = 'red'
-value_color = 'green'
-preproc_color = 'magenta'
 
-def colorize(line, keys, types, vals, preps):
-    words = re.split('(\W+)', line)
-    out = ""
-    for word in words:
-        if word in keys:
-            out += colored(word, keyword_color)
-        elif word in types:
-            out += colored(word, type_color)
-        elif re.match('^[0-9]+(\.[0-9]+)?$', word) or word in vals:
-            out += colored(word, value_color)
-        elif word in preps:
-            out += colored(word, preproc_color)
-        else:
-            for brace in '[ ] { } ( )'.split(): 
-                word = word.replace(brace, colored(brace, brace_color))            
-            out += word
-    return out
+cpp_lexer = CppLexer()
+python_lexer = PythonLexer()
+
+terminal_formatter = TerminalFormatter()
 
 
 def colorize_cpp(line):
-    keys = """            auto        const            struct
-break       continue      else        for              switch
-case        default       enum        goto             register  sizeof  typedef  volatile
-            do            extern      if               return     static  union   while
-asm         dynamic_cast  namespace   reinterpret_cast try
-explicit    new           static_cast typeid
-catch       operator      template    typename
-class       friend        private     this             using
-const_cast  inline        public      throw            virtual
-delete      mutable       protected
-and         bitand        compl       not_eq   or_eq   xor_eq
-and_eq      bitor         not         or       xor""".split()
-    types = 'int char short long double float void unsigned signed bool wchar_t'.split()
-    vals = 'true false'.split()
-    preps = 'include # define ifdef ifndef endif'.split()
-
-    return colorize(line, keys, types, vals, preps)
+    return pygments.highlight(code, cpp_lexer, terminal_formatter).rstrip("\r\n")
 
 
 def colorize_python(line):
-    keys = keyword.kwlist
-    types = 'int float bool str'.split()
-    vals = 'True False'.split()
-    preps = []
-
-    return colorize(line, keys, types, vals, preps)
+    return pygments.highlight(code, python_lexer, terminal_formatter).rstrip("\r\n")
 
 
 def number_of_lines_in_file(file_name):
