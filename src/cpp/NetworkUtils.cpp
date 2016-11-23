@@ -11,6 +11,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
+//for AF_UNIX
+#include <sys/un.h>
+
 
 int readBytes(int fd, char *buf, int numberOfBytes)
 {
@@ -71,6 +74,39 @@ int socketConnect(const char *address, int port)
     return sock;
 }
 
+
+int socketConnectUnix(const char *socketPath)
+{
+    struct sockaddr_un addr;
+
+    memset(&addr, 0, sizeof(sockaddr_un));
+
+    addr.sun_family = AF_UNIX;
+    if(snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath) >= (int)sizeof(addr.sun_path))
+    {
+        printf("socket name too long\n");
+        return -1;
+    }
+
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    if(sock < 0)
+    {
+        printf("socket failed!\r\n");
+        return -1;
+    }
+
+    if(connect(sock, (struct sockaddr*)&addr, sizeof(sockaddr_un)) != 0)
+    {
+        printf("connect failed!\r\n");
+        close(sock);
+        return -1;
+    }
+
+    return sock;
+}
+
+
 int socketListen(int port)
 {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -113,6 +149,50 @@ int socketListen(int port)
 
     return sockfd;
 }
+
+int socketListenUnix(const char *socketPath)
+{
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    if(sockfd < 0)
+    {
+        printf("socket failed\n");
+        return -1;
+    }
+
+    struct sockaddr_un serv_addr;
+
+    memset(&serv_addr, 0, sizeof(struct sockaddr_un));
+
+    serv_addr.sun_family = AF_UNIX;
+
+    if(snprintf(serv_addr.sun_path, sizeof(serv_addr.sun_path), "%s", socketPath) >= (int)sizeof(serv_addr.sun_path))
+    {
+        printf("socket name too long\n");
+        return -1;
+    }
+
+    unlink(serv_addr.sun_path);
+
+    if(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(struct sockaddr_un)) != 0)
+    {
+        printf("bind failed: %s\r\n", strerror(errno));
+        close(sockfd);
+        return -1;
+    }
+
+    if(listen(sockfd, 1000) != 0) //length of queue of pending connections
+    {
+        printf("listen failed\r\n");
+        close(sockfd);
+        return -1;
+    }
+
+    return sockfd;
+}
+
+
+
 
 bool setNonBlock(int fd)
 {
