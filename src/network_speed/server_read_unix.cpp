@@ -21,7 +21,7 @@ static int sockfd = -1;
 static const int BUF_SIZE = 1000000;
 static bool withCheck = false;
 static char buf[BUF_SIZE];
-
+char socketName[300] = {};
 
 static void sig_int_handler(int i)
 {
@@ -30,6 +30,10 @@ static void sig_int_handler(int i)
     if(sockfd > 0)
     {
         close(sockfd);
+    }
+    if(socketName[0] != 0)
+    {
+        unlink(socketName);
     }
 
     exit(-1);
@@ -106,7 +110,7 @@ static void* clientThreadEntry(void *arg)
 
 static bool server()
 {
-    char workingDir[300], socketName[300];
+    char workingDir[300];
 
     if(getcwd(workingDir, 300) == NULL)
     {
@@ -146,6 +150,8 @@ static bool server()
             pthread_create(&th, nullptr, clientThreadEntry, pClientSocket);
         }
     }
+
+    return true;
 }
 
 
@@ -153,7 +159,7 @@ int main(int argc, char** argv)
 {
     if(argc <= 1)
     {
-        printf("usage: server [check]\n");
+        printf("usage: server_read_unix [check]\n");
     }
 
     signal(SIGINT, sig_int_handler);

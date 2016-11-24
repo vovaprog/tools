@@ -92,7 +92,7 @@ int writeToFile(int fd, bool withCheck)
 
 }
 
-static int client(const char *addr, bool withCheck)
+static int client(bool withCheck)
 {
     char workingDir[300], socketName[300];
 
@@ -127,25 +127,20 @@ int main(int argc, char** argv)
 {
     if(argc <= 1)
     {
-        printf("usage: client [ ip [check] ]\n");
+        printf("usage: client_write_unix [check]\n");
     }
 
-    signal(SIGINT, sig_int_handler);
+    bool withCheck;
 
-    const char * addr = "127.0.0.1";
-    bool withCheck = false;
-
-    if(argc >= 2)
-    {
-        addr = argv[1];
-    }
-    if(argc >= 3 && strcmp(argv[2], "check") == 0)
+    if(argc >= 2 && strcmp(argv[1], "check") == 0)
     {
         withCheck = true;
         printf("running with check\n");
     }
+   
+    signal(SIGINT, sig_int_handler);
 
-    client(addr, withCheck);
+    client(withCheck);
 
     return 0;
 }
